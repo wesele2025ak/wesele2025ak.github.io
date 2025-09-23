@@ -5,7 +5,7 @@ const ASSETS = [
   './index.html',
   './main.js',
   './manifest.webmanifest',
-  // './assets/icon-192.png', // dodaj gdy plik będzie na miejscu
+  './assets/icon-192.png',
 ];
 
 self.addEventListener('install', (e) => {
