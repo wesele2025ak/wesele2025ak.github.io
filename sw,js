@@ -1,23 +1,20 @@
-// sw.js — wersja odporna na 404
-const CACHE = 'pd-v2';
+// sw.js — v3 (odporna instalacja)
+const CACHE = 'pd-v3';
 const ASSETS = [
   './',
   './index.html',
   './main.js',
   './manifest.webmanifest',
-  './assets/icon-192.png',
+  // './assets/icon-192.png', // dodaj gdy plik będzie na miejscu
 ];
-
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const c = await caches.open(CACHE);
-    const reqs = ASSETS.map(u => c.add(u));
-    await Promise.allSettled(reqs);
+    await Promise.allSettled(ASSETS.map(u => c.add(u)));
     self.skipWaiting();
   })());
 });
-
 
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
@@ -26,7 +23,6 @@ self.addEventListener('activate', (e) => {
     self.clients.claim();
   })());
 });
-
 
 self.addEventListener('fetch', (e) => {
   e.respondWith((async () => {

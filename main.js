@@ -58,9 +58,7 @@ async function uploadOne(item, captcha) {
     files: [{ name: item.name, mime: item.mime, dataBase64: item.dataBase64 }]
   });
 
-
-  const body = new URLSearchParams({ payload }); // x-www-form-urlencoded, bez preflight
-
+  const body = new URLSearchParams({ payload });
 
   const res = await fetch(UPLOAD_URL, {
     method: 'POST',
