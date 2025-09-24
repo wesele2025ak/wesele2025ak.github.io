@@ -1,9 +1,8 @@
-// main.js — wersja bez-CORS (POST przez <form target="iframe">)
 const qs = new URLSearchParams(location.search);
 const EVENT = qs.get('event') || 'WESELE2025';
-const SECRET_TOKEN = qs.get('token') || '2UJVIiEFeZGt1wpOB9aLVUhVjGwD8IF1vdtW4aI6Br6bJM1mO5JqiwR2ex4uBmsk'; // ten sam co w Apps Script (i w QR)
-const UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbwflgYTFCb3f9K-JScfHMumU-cpcUUkGHAO8Ve1EVqyRQUaLJQq4ydjMjzvjB4mtSJu/exec'; // URL z deployu Apps Script (Web App, bez /u/3/)
-const SITE_KEY = '0x4AAAAAAB23OR0zpvaIh2Vj'; // publiczny site key z Cloudflare Turnstile
+const SECRET_TOKEN = qs.get('token') || '2UJVIiEFeZGt1wpOB9aLVUhVjGwD8IF1vdtW4aI6Br6bJM1mO5JqiwR2ex4uBmsk';
+const UPLOAD_URL = 'https://wesele-worker.wesele2025ak.workers.dev/';
+const SITE_KEY = '0x4AAAAAAB23OR0zpvaIh2Vj';
 
 
 function getUUID() { const k = 'photoDropUUID'; let v = localStorage.getItem(k); if (!v) { v = crypto.randomUUID(); localStorage.setItem(k, v); } return v; }
@@ -52,7 +51,7 @@ sendBtn.onclick = async () => {
     prog.classList.remove('hidden');
     let sent = 0;
     for (const item of queue) {
-      await uploadOneViaForm(item, captcha); // ← wysyłka przez <form> + <iframe>
+      await uploadOneViaForm(item, captcha);
       sent++;
       prog.value = Math.round(100 * sent / queue.length);
     }
@@ -86,10 +85,9 @@ async function compressImageFile(file, maxDim = 1920, quality = 0.85) {
   return { name: file.name.replace(/\.[^.]+$/, '.jpg'), mime: 'image/jpeg', dataBase64: base64, objectURL };
 }
 
-// === Turnstile (stabilne: explicit render + execute(container, params)) ===
 let widgetId = null;
-let captchaPromise = null; // obietnica bieżącej weryfikacji
-let _resolveCaptcha = null; // resolver skojarzony z powyższą obietnicą
+let captchaPromise = null;
+let _resolveCaptcha = null;
 
 
 function onCaptcha(token) {
@@ -113,12 +111,12 @@ async function ensureCaptcha() {
 
 async function getCaptchaToken() {
   await ensureCaptcha();
-  if (captchaPromise) return captchaPromise; // jedna weryfikacja naraz
+  if (captchaPromise) return captchaPromise;
 
 
   const container = document.getElementById('cf');
   captchaPromise = new Promise((resolve, reject) => {
-    _resolveCaptcha = resolve; // zapisz resolver ZANIM wywołasz execute
+    _resolveCaptcha = resolve;
     try {
       window.turnstile.reset(widgetId);
       window.turnstile.execute(container, { sitekey: SITE_KEY, action: 'upload' });
@@ -127,7 +125,6 @@ async function getCaptchaToken() {
   return captchaPromise;
 }
 
-// === Wysyłka bez CORS: POST przez ukryty <iframe> + <form> ===
 function ensureIframe() {
   let iframe = document.getElementById('upload_iframe');
   if (!iframe) {
@@ -145,10 +142,9 @@ function uploadOneViaForm(item, captcha) {
     const iframe = ensureIframe();
 
 
-    // przygotuj formularz
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = UPLOAD_URL; // inna domena OK — to prawdziwy submit, nie XHR
+    form.action = UPLOAD_URL;
     form.target = 'upload_iframe';
     form.enctype = 'multipart/form-data';
     form.style.display = 'none';
@@ -173,11 +169,10 @@ function uploadOneViaForm(item, captcha) {
     document.body.appendChild(form);
 
 
-    // czekamy na ZAŁADOWANIE odpowiedzi w iframie (bez czytania treści — brak CORS)
     const onload = () => {
       iframe.removeEventListener('load', onload);
       form.remove();
-      resolve(); // traktujemy "load" jako sukces HTTP
+      resolve();
     };
     iframe.addEventListener('load', onload, { once: true });
 
