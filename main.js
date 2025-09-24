@@ -1,18 +1,12 @@
-// main.js
+// main.js — wersja bez-CORS (POST przez <form target="iframe">)
 const qs = new URLSearchParams(location.search);
 const EVENT = qs.get('event') || 'WESELE2025';
-const SECRET_TOKEN = qs.get('token') || '2UJVIiEFeZGt1wpOB9aLVUhVjGwD8IF1vdtW4aI6Br6bJM1mO5JqiwR2ex4uBmsk'; // token z QR (możesz też wpisać na sztywno)
-const UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbwflgYTFCb3f9K-JScfHMumU-cpcUUkGHAO8Ve1EVqyRQUaLJQq4ydjMjzvjB4mtSJu/exec'; // z Apps Script deploy
-const TURNSTILE_SITE_KEY = '0x4AAAAAAB23OR0zpvaIh2Vj'; // z Cloudflare (musi zgadzać się z index.html)
+const SECRET_TOKEN = qs.get('token') || '2UJVIiEFeZGt1wpOB9aLVUhVjGwD8IF1vdtW4aI6Br6bJM1mO5JqiwR2ex4uBmsk'; // ten sam co w Apps Script (i w QR)
+const UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbwflgYTFCb3f9K-JScfHMumU-cpcUUkGHAO8Ve1EVqyRQUaLJQq4ydjMjzvjB4mtSJu/exec'; // URL z deployu Apps Script (Web App, bez /u/3/)
+const SITE_KEY = '0x4AAAAAAB23OR0zpvaIh2Vj'; // publiczny site key z Cloudflare Turnstile
 
 
-// UUID per urządzenie
-function getUUID() {
-  const k = 'photoDropUUID';
-  let v = localStorage.getItem(k);
-  if (!v) { v = crypto.randomUUID(); localStorage.setItem(k, v); }
-  return v;
-}
+function getUUID() { const k = 'photoDropUUID'; let v = localStorage.getItem(k); if (!v) { v = crypto.randomUUID(); localStorage.setItem(k, v); } return v; }
 const UUID = getUUID();
 
 
@@ -29,7 +23,7 @@ const statusEl = document.getElementById('status');
 
 
 let queue = [];
-
+let _sending = false;
 
 shootBtn.onclick = () => input.click();
 input.onchange = async (e) => {
@@ -41,32 +35,39 @@ input.onchange = async (e) => {
   }
 };
 
-
 clearBtn.onclick = () => { queue = []; preview.innerHTML = ''; prog.value = 0; status('Kolejka wyczyszczona'); };
+
+
 sendBtn.onclick = async () => {
+  if (_sending) return;
   if (!queue.length) return status('Brak zdjęć w kolejce');
-  status('Weryfikacja...');
-  const captcha = await getCaptchaToken();
-  prog.classList.remove('hidden');
-  let sent = 0;
-  for (const item of queue) {
-    await uploadOne(item, captcha);
-    sent++;
-    prog.value = Math.round(100 * sent / queue.length);
+
+
+  _sending = true; sendBtn.disabled = true;
+  try {
+    status('Weryfikacja...');
+    const captcha = await getCaptchaToken();
+
+
+    prog.classList.remove('hidden');
+    let sent = 0;
+    for (const item of queue) {
+      await uploadOneViaForm(item, captcha); // ← wysyłka przez <form> + <iframe>
+      sent++;
+      prog.value = Math.round(100 * sent / queue.length);
+    }
+    status('Wysłano ' + sent + ' zdjęć ✅');
+    queue = []; preview.innerHTML = '';
+  } catch (e) {
+    console.error(e);
+    status('Błąd wysyłki: ' + (e.message || e));
+  } finally {
+    _sending = false; sendBtn.disabled = false;
   }
-  status('Wysłano ' + sent + ' zdjęć ✅');
-  queue = []; preview.innerHTML = '';
 };
 
-
 function status(t) { statusEl.textContent = t; }
-
-
-function addThumb(url) {
-  const d = document.createElement('div'); d.className = 'thumb';
-  const img = document.createElement('img'); img.src = url; d.appendChild(img);
-  preview.appendChild(d);
-}
+function addThumb(url) { const d = document.createElement('div'); d.className = 'thumb'; const img = document.createElement('img'); img.src = url; d.appendChild(img); preview.appendChild(d); }
 
 
 async function compressImageFile(file, maxDim = 1920, quality = 0.85) {
@@ -85,50 +86,107 @@ async function compressImageFile(file, maxDim = 1920, quality = 0.85) {
   return { name: file.name.replace(/\.[^.]+$/, '.jpg'), mime: 'image/jpeg', dataBase64: base64, objectURL };
 }
 
-
-async function uploadOne(item, captcha) {
-  const payload = JSON.stringify({
-    event: EVENT,
-    token: SECRET_TOKEN,
-    uuid: UUID,
-    captcha,
-    files: [{ name: item.name, mime: item.mime, dataBase64: item.dataBase64 }]
-  });
+// === Turnstile (stabilne: explicit render + execute(container, params)) ===
+let widgetId = null;
+let captchaPromise = null; // obietnica bieżącej weryfikacji
+let _resolveCaptcha = null; // resolver skojarzony z powyższą obietnicą
 
 
-  // Używamy application/x-www-form-urlencoded, aby uniknąć preflight
-  const body = new URLSearchParams({ payload });
-
-
-  const res = await fetch(UPLOAD_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-    body
-  });
-  // Apps Script zwykle zwraca 200 z JSONem – spróbuj odczytać:
-  const txt = await res.text();
-  try {
-    const json = JSON.parse(txt);
-    if (!json.ok) throw new Error(json.error || 'upload_failed');
-    return json;
-  } catch (e) {
-    console.warn('Response not JSON or error', txt);
-    throw e;
-  }
+function onCaptcha(token) {
+  if (_resolveCaptcha) { _resolveCaptcha(token); _resolveCaptcha = null; captchaPromise = null; }
 }
 
 
-// Turnstile: invisible
-let _captchaResolve;
-window.onCaptcha = (token) => { if (_captchaResolve) { _captchaResolve(token); _captchaResolve = null; } };
-function getCaptchaToken() {
-  return new Promise((resolve) => {
-    _captchaResolve = resolve;
-    if (window.turnstile) {
-      window.turnstile.execute(document.getElementById('cf'));
-    } else {
-      // fallback: jeśli Turnstile nie załadował się, pozwól przejść (niezalecane w produkcji)
-      resolve('');
+async function ensureCaptcha() {
+  return new Promise(resolve => {
+    const wait = () => {
+      if (window.turnstile) {
+        if (!widgetId) {
+          widgetId = window.turnstile.render('#cf', { sitekey: SITE_KEY, size: 'invisible', callback: onCaptcha });
+        }
+        resolve();
+      } else setTimeout(wait, 50);
+    };
+    wait();
+  });
+}
+
+async function getCaptchaToken() {
+  await ensureCaptcha();
+  if (captchaPromise) return captchaPromise; // jedna weryfikacja naraz
+
+
+  const container = document.getElementById('cf');
+  captchaPromise = new Promise((resolve, reject) => {
+    _resolveCaptcha = resolve; // zapisz resolver ZANIM wywołasz execute
+    try {
+      window.turnstile.reset(widgetId);
+      window.turnstile.execute(container, { sitekey: SITE_KEY, action: 'upload' });
+    } catch (e) { _resolveCaptcha = null; captchaPromise = null; reject(e); }
+  });
+  return captchaPromise;
+}
+
+// === Wysyłka bez CORS: POST przez ukryty <iframe> + <form> ===
+function ensureIframe() {
+  let iframe = document.getElementById('upload_iframe');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.name = 'upload_iframe';
+    iframe.id = 'upload_iframe';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+  }
+  return iframe;
+}
+
+function uploadOneViaForm(item, captcha) {
+  return new Promise((resolve, reject) => {
+    const iframe = ensureIframe();
+
+
+    // przygotuj formularz
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = UPLOAD_URL; // inna domena OK — to prawdziwy submit, nie XHR
+    form.target = 'upload_iframe';
+    form.enctype = 'multipart/form-data';
+    form.style.display = 'none';
+
+
+    const payload = {
+      event: EVENT,
+      token: SECRET_TOKEN,
+      uuid: UUID,
+      captcha,
+      files: [{ name: item.name, mime: item.mime, dataBase64: item.dataBase64 }]
+    };
+
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
+
+
+    document.body.appendChild(form);
+
+
+    // czekamy na ZAŁADOWANIE odpowiedzi w iframie (bez czytania treści — brak CORS)
+    const onload = () => {
+      iframe.removeEventListener('load', onload);
+      form.remove();
+      resolve(); // traktujemy "load" jako sukces HTTP
+    };
+    iframe.addEventListener('load', onload, { once: true });
+
+
+    try { form.submit(); }
+    catch (e) {
+      iframe.removeEventListener('load', onload);
+      form.remove();
+      reject(e);
     }
   });
 }

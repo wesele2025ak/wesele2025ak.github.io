@@ -7,6 +7,9 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <meta name="theme-color" content="#ffffff" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+    <link rel="icon" href="./favicon.ico">
+
+    <!-- Turnstile API (bez auto-render) -->
     <script
       src="https://challenges.cloudflare.com/turnstile/v0/api.js"
       async
@@ -96,14 +99,8 @@
         <span id="status"></span>
       </div>
 
-      <!-- Invisible Turnstile placeholder -->
-      <div
-        id="cf"
-        class="cf-turnstile"
-        data-sitekey="TURNSTILE_SITE_KEY"
-        data-size="invisible"
-        data-callback="onCaptcha"
-      ></div>
+      <!-- Kontener dla Turnstile (bez cf-turnstile i bez data-sitekey) -->
+      <div id="cf"></div>
     </div>
 
     <script type="module" src="./main.js"></script>
