@@ -119,56 +119,16 @@ async function uploadOne(item, captcha) {
 
 
 // Turnstile: invisible
-let widgetId = null;
-let captchaPromise = null;      // obietnica bieżącej weryfikacji
-let _resolveCaptcha = null;     // resolver skojarzony z powyższą obietnicą
-
-// Callback zdefiniowany w render() — wywoływany przez Turnstile po sukcesie
-function onCaptcha(token) {
-  if (_resolveCaptcha) {
-    _resolveCaptcha(token);
-    _resolveCaptcha = null;
-    captchaPromise = null;
-  } // jeśli przyszło „za wcześnie”, po prostu ignorujemy
-}
-
-async function ensureCaptcha() {
-  return new Promise(resolve => {
-    const wait = () => {
-      if (window.turnstile) {
-        if (!widgetId) {
-          widgetId = window.turnstile.render('#cf', {
-            sitekey: TURNSTILE_SITE_KEY,
-            size: 'invisible',
-            callback: onCaptcha
-          });
-        }
-        resolve();
-      } else setTimeout(wait, 50);
-    };
-    wait();
-  });
-}
-
-async function getCaptchaToken() {
-  await ensureCaptcha();
-  if (captchaPromise) return captchaPromise; // jedna weryfikacja naraz
-
-  const container = document.getElementById('cf');
-
-  captchaPromise = new Promise((resolve, reject) => {
-    _resolveCaptcha = resolve; // zapamiętaj resolver zanim wywołasz execute
-    try {
-      // świeży token
-      window.turnstile.reset(widgetId);
-      // wymagane: 2 parametry — kontener i opcje
-      window.turnstile.execute(container, { sitekey: TURNSTILE_SITE_KEY, action: 'upload' });
-    } catch (e) {
-      _resolveCaptcha = null;
-      captchaPromise = null;
-      reject(e);
+let _captchaResolve;
+window.onCaptcha = (token) => { if (_captchaResolve) { _captchaResolve(token); _captchaResolve = null; } };
+function getCaptchaToken() {
+  return new Promise((resolve) => {
+    _captchaResolve = resolve;
+    if (window.turnstile) {
+      window.turnstile.execute(document.getElementById('cf'));
+    } else {
+      // fallback: jeśli Turnstile nie załadował się, pozwól przejść (niezalecane w produkcji)
+      resolve('');
     }
   });
-
-  return captchaPromise;
 }

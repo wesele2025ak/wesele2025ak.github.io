@@ -3,13 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Wesele 2025</title>
+    <title>Photo Drop</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <meta name="theme-color" content="#ffffff" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="icon" href="./favicon.ico">
-
-    <!-- Turnstile API (bez auto-render) -->
     <script
       src="https://challenges.cloudflare.com/turnstile/v0/api.js"
       async
@@ -99,14 +96,20 @@
         <span id="status"></span>
       </div>
 
-      <!-- Kontener dla Turnstile (bez cf-turnstile i bez data-sitekey) -->
-      <div id="cf"></div>
+      <!-- Invisible Turnstile placeholder -->
+      <div
+        id="cf"
+        class="cf-turnstile"
+        data-sitekey="TURNSTILE_SITE_KEY"
+        data-size="invisible"
+        data-callback="onCaptcha"
+      ></div>
     </div>
 
     <script type="module" src="./main.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./service-worker.js");
+        navigator.serviceWorker.register("./sw.js");
       }
     </script>
   </body>
