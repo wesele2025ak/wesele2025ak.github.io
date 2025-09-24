@@ -120,20 +120,23 @@ async function uploadOne(item, captcha) {
 
 // Turnstile: invisible
 let widgetId = null;
-let captchaInFlight = null;
+let captchaPromise = null;      // obietnica bieżącej weryfikacji
+let _resolveCaptcha = null;     // resolver skojarzony z powyższą obietnicą
 
-window.onCaptcha = (token) => {
-  if (captchaInFlight && captchaInFlight._resolve) {
-    captchaInFlight._resolve(token);
-  }
-};
+// Callback zdefiniowany w render() — wywoływany przez Turnstile po sukcesie
+function onCaptcha(token) {
+  if (_resolveCaptcha) {
+    _resolveCaptcha(token);
+    _resolveCaptcha = null;
+    captchaPromise = null;
+  } // jeśli przyszło „za wcześnie”, po prostu ignorujemy
+}
 
 async function ensureCaptcha() {
   return new Promise(resolve => {
     const wait = () => {
       if (window.turnstile) {
         if (!widgetId) {
-          // renderujemy raz – na istniejącym kontenerze #cf
           widgetId = window.turnstile.render('#cf', {
             sitekey: TURNSTILE_SITE_KEY,
             size: 'invisible',
@@ -149,25 +152,23 @@ async function ensureCaptcha() {
 
 async function getCaptchaToken() {
   await ensureCaptcha();
-  if (captchaInFlight) return captchaInFlight; // jedna weryfikacja naraz
+  if (captchaPromise) return captchaPromise; // jedna weryfikacja naraz
 
   const container = document.getElementById('cf');
 
-  captchaInFlight = new Promise((resolve, reject) => {
-    captchaInFlight._resolve = resolve;
+  captchaPromise = new Promise((resolve, reject) => {
+    _resolveCaptcha = resolve; // zapamiętaj resolver zanim wywołasz execute
     try {
-      // Zawsze reset – nowy token:
+      // świeży token
       window.turnstile.reset(widgetId);
-      // 🔧 KLUCZOWA ZMIANA: podajemy 2 parametry: kontener + opcje (z sitekey)
-      window.turnstile.execute(container, {
-        sitekey: TURNSTILE_SITE_KEY,
-        action: 'upload' // opcjonalnie: nazwa akcji
-      });
+      // wymagane: 2 parametry — kontener i opcje
+      window.turnstile.execute(container, { sitekey: TURNSTILE_SITE_KEY, action: 'upload' });
     } catch (e) {
-      captchaInFlight = null;
+      _resolveCaptcha = null;
+      captchaPromise = null;
       reject(e);
     }
-  }).finally(() => { captchaInFlight = null; });
+  });
 
-  return captchaInFlight;
+  return captchaPromise;
 }
