@@ -51,7 +51,7 @@ sendBtn.onclick = async () => {
     prog.classList.remove('hidden');
     let sent = 0;
     for (const item of queue) {
-      await uploadOneViaForm(item, captcha);
+      await uploadOne(item, captcha);
       sent++;
       prog.value = Math.round(100 * sent / queue.length);
     }
@@ -137,51 +137,27 @@ function ensureIframe() {
   return iframe;
 }
 
-function uploadOneViaForm(item, captcha) {
-  return new Promise((resolve, reject) => {
-    const iframe = ensureIframe();
-
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = UPLOAD_URL;
-    form.target = 'upload_iframe';
-    form.enctype = 'multipart/form-data';
-    form.style.display = 'none';
-
-
-    const payload = {
-      event: EVENT,
-      token: SECRET_TOKEN,
-      uuid: UUID,
-      captcha,
-      files: [{ name: item.name, mime: item.mime, dataBase64: item.dataBase64 }]
-    };
-
-
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = 'payload';
-    input.value = JSON.stringify(payload);
-    form.appendChild(input);
-
-
-    document.body.appendChild(form);
-
-
-    const onload = () => {
-      iframe.removeEventListener('load', onload);
-      form.remove();
-      resolve();
-    };
-    iframe.addEventListener('load', onload, { once: true });
-
-
-    try { form.submit(); }
-    catch (e) {
-      iframe.removeEventListener('load', onload);
-      form.remove();
-      reject(e);
-    }
+async function uploadOne(item, captcha) {
+  const payload = JSON.stringify({
+    event: EVENT,
+    token: SECRET_TOKEN,
+    uuid: UUID,
+    captcha,
+    files: [{ name: item.name, mime: item.mime, dataBase64: item.dataBase64 }]
   });
+
+  const res = await fetch(UPLOAD_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: new URLSearchParams({ payload })
+  });
+
+  const txt = await res.text();
+  console.log('Server response:', txt);
+  let json;
+  try { json = JSON.parse(txt); }
+  catch { throw new Error('Bad JSON from server: ' + txt); }
+
+  if (!json.ok) throw new Error(json.error || 'upload_failed');
+  return json;
 }
