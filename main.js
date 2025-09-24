@@ -51,7 +51,7 @@ sendBtn.onclick = async () => {
     prog.classList.remove('hidden');
     let sent = 0;
     for (const item of queue) {
-      await uploadOne(item, captcha);
+      await uploadOneAdaptive(item, captcha);
       sent++;
       prog.value = Math.round(100 * sent / queue.length);
     }
@@ -125,6 +125,42 @@ async function getCaptchaToken() {
   return captchaPromise;
 }
 
+async function uploadOneAdaptive(item, captcha) {
+  try {
+    // 1) próba przez Workera (XHR)
+    return await uploadOneViaWorker(item, captcha);
+  } catch (err) {
+    console.warn('Worker path failed, falling back to iframe:', err);
+    // 2) fallback: iframe (100% bez CORS)
+    return await uploadOneViaIframe(item, captcha);
+  }
+}
+
+async function uploadOneViaWorker(item, captcha) {
+  const payload = JSON.stringify({
+    event: EVENT,
+    token: SECRET_TOKEN,
+    uuid: UUID,
+    captcha,
+    files: [{ name: item.name, mime: item.mime, dataBase64: item.dataBase64 }]
+  });
+
+  const res = await fetch(UPLOAD_URL /* adres Workera */, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: new URLSearchParams({ payload })
+  });
+
+  const txt = await res.text();
+  console.log('Worker/Server response:', txt);
+  let json;
+  try { json = JSON.parse(txt); }
+  catch { throw new Error('Server returned non-JSON: ' + txt.slice(0, 160)); }
+
+  if (!json.ok) throw new Error(json.error || 'upload_failed');
+  return json;
+}
+
 function ensureIframe() {
   let iframe = document.getElementById('upload_iframe');
   if (!iframe) {
@@ -137,27 +173,59 @@ function ensureIframe() {
   return iframe;
 }
 
-async function uploadOne(item, captcha) {
-  const payload = JSON.stringify({
-    event: EVENT,
-    token: SECRET_TOKEN,
-    uuid: UUID,
-    captcha,
-    files: [{ name: item.name, mime: item.mime, dataBase64: item.dataBase64 }]
+// UŻYJ Apps Script URL bezpośrednio, ale z ?mode=iframe
+const APPSCRIPT_URL_FOR_IFRAME = 'https://script.google.com/macros/s/AKfycbwflgYTFCb3f9K-JScfHMumU-cpcUUkGHAO8Ve1EVqyRQUaLJQq4ydjMjzvjB4mtSJu/exec?mode=iframe'; // <- wklej swój
+
+function uploadOneViaIframe(item, captcha) {
+  return new Promise((resolve, reject) => {
+    const iframe = ensureIframe();
+
+    const onMessage = (ev) => {
+      window.removeEventListener('message', onMessage);
+      try {
+        const data = ev.data;
+        if (data && data.ok) resolve(data);
+        else reject(new Error((data && data.error) || 'upload_failed'));
+      } catch (e) { reject(e); }
+    };
+    window.addEventListener('message', onMessage, { once: true });
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = APPSCRIPT_URL_FOR_IFRAME; // bezpośrednio do Apps Script
+    form.target = 'upload_iframe';
+    form.enctype = 'multipart/form-data';
+    form.style.display = 'none';
+
+    const payload = {
+      event: EVENT,
+      token: SECRET_TOKEN,
+      uuid: UUID,
+      captcha,
+      files: [{ name: item.name, mime: item.mime, dataBase64: item.dataBase64 }]
+    };
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
+
+    document.body.appendChild(form);
+
+    const onload = () => {
+      // odpowiedź przyjdzie postMessage, onload tylko sprzątamy
+      iframe.removeEventListener('load', onload);
+      form.remove();
+    };
+    iframe.addEventListener('load', onload, { once: true });
+
+    try { form.submit(); }
+    catch (e) {
+      window.removeEventListener('message', onMessage);
+      iframe.removeEventListener('load', onload);
+      form.remove();
+      reject(e);
+    }
   });
-
-  const res = await fetch(UPLOAD_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-    body: new URLSearchParams({ payload })
-  });
-
-  const txt = await res.text();
-  console.log('Server response:', txt);
-  let json;
-  try { json = JSON.parse(txt); }
-  catch { throw new Error('Bad JSON from server: ' + txt); }
-
-  if (!json.ok) throw new Error(json.error || 'upload_failed');
-  return json;
 }
