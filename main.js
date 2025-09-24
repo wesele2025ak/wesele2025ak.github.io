@@ -2,7 +2,7 @@
 const qs = new URLSearchParams(location.search);
 const EVENT = qs.get('event') || 'WESELE2025';
 const SECRET_TOKEN = qs.get('token') || '2UJVIiEFeZGt1wpOB9aLVUhVjGwD8IF1vdtW4aI6Br6bJM1mO5JqiwR2ex4uBmsk'; // token z QR (możesz też wpisać na sztywno)
-const UPLOAD_URL = 'https://script.google.com/macros/u/3/s/AKfycbwflgYTFCb3f9K-JScfHMumU-cpcUUkGHAO8Ve1EVqyRQUaLJQq4ydjMjzvjB4mtSJu/exec'; // z Apps Script deploy
+const UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbwflgYTFCb3f9K-JScfHMumU-cpcUUkGHAO8Ve1EVqyRQUaLJQq4ydjMjzvjB4mtSJu/exec'; // z Apps Script deploy
 const TURNSTILE_SITE_KEY = '0x4AAAAAAB23OR0zpvaIh2Vj'; // z Cloudflare (musi zgadzać się z index.html)
 
 
