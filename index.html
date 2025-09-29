@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prześlij zdjęcie</title>
+  <meta name="theme-color" content="#000000">
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 1rem; }
+    .card { max-width: 560px; margin: 0 auto; padding: 1rem; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+    h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+    .muted { color: #666; font-size: .95rem; }
+    button { padding: .9rem 1.1rem; border-radius: 999px; border: 0; font-weight: 600; cursor: pointer; }
+    #pick { background: #111; color: #fff; width: 100%; margin-top: .75rem; }
+    #send { background: #0a7; color: #fff; width: 100%; margin-top: .5rem; }
+    #send[disabled] { opacity: .6; cursor: not-allowed; }
+    #preview { width: 100%; max-height: 60vh; object-fit: contain; margin-top: .5rem; border-radius: 12px; }
+    .row { display: flex; gap: .5rem; align-items: center; margin-top: .5rem; }
+    progress { width: 100%; height: 12px; }
+    .pill { display: inline-block; padding: .2rem .6rem; border-radius: 999px; background: #eee; margin-top: .25rem; font-size: .85rem; }
+    .err { color: #c00; }
+    footer { margin-top: 1rem; font-size: .85rem; color: #666; text-align: center; }
+    .meta { font-size: .85rem; color: #555; margin-top: .25rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Dodaj zdjęcie</h1>
+    <p class="muted">Zeskanuj QR, wybierz zdjęcie i wyślij. Plik trafi do prywatnego folderu organizatora (pełna rozdzielczość).</p>
+
+    <div id="window" class="pill">Sprawdzam okno czasowe…</div>
+
+    <input id="file" type="file" accept="image/*" capture="environment" hidden />
+    <button id="pick">Zrób lub wybierz zdjęcie</button>
+    <div id="meta" class="meta"></div>
+    <img id="preview" alt="" />
+
+    <div class="row"><progress id="prog" max="100" value="0"></progress><span id="pct" class="muted">0%</span></div>
+    <button id="send" disabled>Wyślij</button>
+
+    <p id="status" class="muted"></p>
+  </div>
+
+  <footer>Wysyłka działa wyłącznie z poprawnego linku QR (podpis HMAC i okno czasowe).</footer>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwOncOdmmoVBDjLxr_1k0gzIY1S_k2oBknhkcnbjeUjfO9fedZE2Kq5xlmzUltj1COBGg/exec';
+
+const url = new URL(location.href);
+const params = {
+  event: url.searchParams.get('event'),
+  uuid:  url.searchParams.get('uuid'),
+  nbf:   url.searchParams.get('nbf'),
+  exp:   url.searchParams.get('exp'),
+  max:   url.searchParams.get('max'),
+  sig:   url.searchParams.get('sig'),
+};
+function requiredOk(p) { return p.event && p.uuid && p.nbf && p.exp && p.max && p.sig; }
+function humanTime(s) { try { return new Date(Number(s)*1000).toLocaleString(); } catch { return s; } }
+function fmtBytes(n) {
+  if (!Number.isFinite(n)) return '';
+  const u = ['B','KB','MB','GB','TB'];
+  const i = Math.min(u.length-1, Math.floor(Math.log(n)/Math.log(1024)));
+  return (n/Math.pow(1024,i)).toFixed(i ? 1 : 0) + ' ' + u[i];
+}
+
+const fileInput = document.getElementById('file');
+const btnPick = document.getElementById('pick');
+const btnSend = document.getElementById('send');
+const imgPrev = document.getElementById('preview');
+const prog = document.getElementById('prog');
+const pct = document.getElementById('pct');
+const statusEl = document.getElementById('status');
+const windowEl = document.getElementById('window');
+const metaEl = document.getElementById('meta');
+
+let originalFile = null;
+
+if (params.nbf && params.exp) {
+  windowEl.textContent = `Wysyłka aktywna od ${humanTime(params.nbf)} do ${humanTime(params.exp)}.`;
+}
+if (!requiredOk(params)) {
+  windowEl.innerHTML = '<span class="err">Błąd linku — brakuje parametrów.</span>';
+}
+
+btnPick.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', () => {
+  const f = fileInput.files[0];
+  if (!f) return;
+  originalFile = f;
+  imgPrev.src = URL.createObjectURL(f);
+  metaEl.textContent = `${f.name || 'plik'} • ${fmtBytes(f.size)}`;
+  btnSend.disabled = !requiredOk(params);
+  statusEl.textContent = requiredOk(params) ? '' : 'Użyj poprawnego QR (podpisany link).';
+});
+
+btnSend.addEventListener('click', async () => {
+  if (!originalFile) return;
+  btnSend.disabled = true; statusEl.textContent = 'Wysyłam…';
+
+  const fd = new FormData();
+  fd.append('file', originalFile, originalFile.name || 'photo');
+  fd.append('event', params.event);
+  fd.append('uuid', params.uuid);
+  fd.append('nbf',  params.nbf);
+  fd.append('exp',  params.exp);
+  fd.append('max',  params.max);
+  fd.append('sig',  params.sig);
+
+  await new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', GAS_URL);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const v = Math.round(100 * e.loaded / e.total);
+        prog.value = v; pct.textContent = v + '%';
+      }
+    };
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === 4) {
+        try {
+          const resp = JSON.parse(xhr.responseText || '{}');
+          if (resp.ok) {
+            statusEl.innerHTML = `Gotowe! Zapisane ✔️ <br> (pozostało: ${resp.remaining ?? '?'})`;
+          } else if (resp.error === 'limit_reached') {
+            statusEl.textContent = `Limit zdjęć wyczerpany (${resp.current}/${resp.limit}).`;
+            btnSend.disabled = false;
+          } else if (resp.error === 'outside_time_window') {
+            statusEl.textContent = 'Poza oknem czasowym — wysyłka niedostępna.';
+            btnSend.disabled = false;
+          } else if (resp.error === 'invalid_signature_or_params') {
+            statusEl.textContent = 'Nieprawidłowy podpis/parametry — użyj poprawnego QR.';
+            btnSend.disabled = false;
+          } else if (resp.error === 'no_file') {
+            statusEl.textContent = 'Nie wykryto pliku do wysłania.';
+            btnSend.disabled = false;
+          } else {
+            statusEl.textContent = 'Błąd: ' + (resp.error || 'unknown');
+            btnSend.disabled = false;
+          }
+        } catch {
+          statusEl.textContent = 'Błąd sieci lub serwera.';
+          btnSend.disabled = false;
+        }
+        resolve();
+      }
+    };
+    xhr.send(fd);
+  });
+});
+</script>
+</body>
+</html>
