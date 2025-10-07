@@ -1,80 +1,85 @@
 <!doctype html>
 <html lang="pl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Prześlij zdjęcie</title>
-  <style>
-    :root { color-scheme: dark; }
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background:#0b0c10; color:#e8e8e8; }
-    .card { max-width: 560px; margin: 0 auto; background:#121317; border: 1px solid #23242a; border-radius:16px; padding:16px; box-shadow:0 6px 18px rgba(0,0,0,.3); }
-    h1{ font-size:1.35rem; margin:0 0 8px; }
-    .muted{ color:#a7a7a7; font-size:.95rem; }
-    .status{ margin-top:12px; padding:10px; border-radius:10px; background:#0e1116; border:1px solid #1f2530; white-space:pre-wrap; min-height:2.4em; }
-    .ok{ border-color:#2a5; } .err{ border-color:#d55; }
-    .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .pill{ border:1px dashed #2b2e36; padding:6px 10px; border-radius:999px; font-size:.85rem; color:#bbc; }
-    .progress{ height:8px; background:#1c1e24; border-radius:999px; overflow:hidden; margin-top:12px; }
-    .progress>div{ height:100%; width:0%; background:#1f88ff; transition:width .2s ease; }
-    button, .btnlike{ font:inherit; background:#1f88ff; color:#fff; border:none; padding:12px 16px; border-radius:10px; cursor:pointer; }
-    button[disabled]{ opacity:.6; cursor:not-allowed; }
-    input[type=file]{ position:absolute; left:-9999px; top:0; width:1px; height:1px; opacity:0; }
-    video{ display:none; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Prześlij zdjęcie — live</title>
+<style>
+  :root { color-scheme: dark; }
+  body{ font-family: system-ui, sans-serif; margin:0; padding:16px; background:#0b0c10; color:#e8e8e8 }
+  .card{ max-width:720px; margin:0 auto; background:#121317; border:1px solid #23242a; border-radius:12px; padding:12px; box-shadow:0 6px 18px rgba(0,0,0,.35) }
+  h1{ font-size:1.2rem; margin:0 0 8px }
+  .muted{ color:#a7a7a7; font-size:.95rem }
+  .status{ margin-top:10px; padding:10px; border-radius:8px; background:#0e1116; border:1px solid #1f2530; white-space:pre-wrap; min-height:3em }
+  .ok{ border-color:#2a5 } .err{ border-color:#d55 }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px }
+  button{ font:inherit; background:#1f88ff; color:#fff; border:none; padding:10px 14px; border-radius:10px; cursor:pointer }
+  button[disabled]{ opacity:.6; cursor:not-allowed }
+  .pill{ display:inline-block; border:1px dashed #2b2e36; padding:6px 10px; border-radius:999px; font-size:.85rem; color:#bbc }
+  .videoWrap{ margin-top:12px; position:relative; border-radius:10px; overflow:hidden; background:#000 }
+  video{ width:100%; height:auto; display:block; background:#000 }
+  .overlayBtn{ position:absolute; right:12px; bottom:12px; z-index:5 }
+  .hint{ margin-top:8px; font-size:.9rem; color:#cfcfcf }
+  .danger{ color:#ffb3b3 }
+  .inApp{ margin-top:8px; padding:8px; background:#16181b; border:1px solid #2a2d33; border-radius:8px }
+  input[type=file]{ position:absolute; left:-9999px }
+</style>
 </head>
 <body>
   <div class="card">
-    <h1>Dodaj zdjęcie do wydarzenia</h1>
+    <h1>Dodaj zdjęcie — podgląd live</h1>
     <div class="muted" id="eventInfo">Sprawdzam token...</div>
 
     <div class="status" id="statusBox">Gotowy.</div>
-    <div class="progress"><div id="bar"></div></div>
 
-    <div style="height:12px"></div>
-    <span class="pill" id="uuidInfo">UUID: ...</span>
-    <div style="height:12px"></div>
+    <div style="height:10px"></div>
+    <span class="pill" id="uuidInfo">UUID: …</span>
 
-    <input id="file" type="file" accept="image/*" capture="environment" />
-
-    <div class="row">
-      <button id="openBtn" type="button">Zrób / wybierz zdjęcie</button>
-      <button id="sendBtn" type="button" disabled class="hide">Wyślij</button>
-      <button id="againBtn" type="button" class="hide">Wyślij kolejne</button>
+    <div class="videoWrap" id="videoWrap" aria-hidden="true" style="display:none">
+      <video id="camVid" autoplay playsinline muted></video>
+      <button class="overlayBtn" id="captureBtn" title="Zrób zdjęcie">Zrób zdjęcie</button>
     </div>
 
-    <div style="height:8px"></div>
-    <div class="muted">Link jest wspólny dla całego wydarzenia. Jakość zachowana 1:1.</div>
-  </div>
+    <div class="row">
+      <button id="openBtn" type="button">Uruchom kamerę / wybierz plik</button>
+      <button id="retryPermBtn" type="button">Sprawdź uprawnienia</button>
+      <button id="openInBrowserBtn" type="button" style="display:none">Otwórz w przeglądarce</button>
+      <input id="file" type="file" accept="image/*" capture="environment" />
+    </div>
 
-  <video id="camVid" autoplay playsinline muted></video>
-  <canvas id="camCanvas" style="display:none"></canvas>
+    <div class="hint" id="hintBox">Dotknij podglądu, aby zrobić zdjęcie (po uruchomieniu kamery). Jeśli przeglądarka nie pyta o dostęp — zobacz instrukcje poniżej.</div>
+
+    <div class="inApp" id="inAppBox" style="display:none"></div>
+
+    <div style="height:10px"></div>
+    <div class="muted">Link jest wspólny dla wydarzenia. Upload następuje od razu po zrobieniu zdjęcia.</div>
+  </div>
 
 <script>
 (function(){
   "use strict";
 
   const WORKER_URL = 'https://wesele-worker.wesele2025ak.workers.dev/upload';
-
   const qs = new URLSearchParams(location.search);
   const eventToken = qs.get('event') || '';
   const t = qs.get('t') || '';
   const statusBox = document.getElementById('statusBox');
   const eventInfo = document.getElementById('eventInfo');
   const uuidInfo = document.getElementById('uuidInfo');
-  const fileInput = document.getElementById('file');
   const openBtn = document.getElementById('openBtn');
-  const sendBtn = document.getElementById('sendBtn');
-  const againBtn = document.getElementById('againBtn');
-  const bar = document.getElementById('bar');
+  const retryPermBtn = document.getElementById('retryPermBtn');
+  const openInBrowserBtn = document.getElementById('openInBrowserBtn');
+  const fileInput = document.getElementById('file');
   const camVid = document.getElementById('camVid');
-  const camCanvas = document.getElementById('camCanvas');
+  const videoWrap = document.getElementById('videoWrap');
+  const captureBtn = document.getElementById('captureBtn');
+  const hintBox = document.getElementById('hintBox');
+  const inAppBox = document.getElementById('inAppBox');
 
   function setOk(msg){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = msg; }
   function setErr(msg){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = msg; }
-  function resetBar(){ bar.style.width = '0%'; }
-  function setBar(p){ bar.style.width = Math.max(0, Math.min(100, p)) + '%'; }
 
-  if (!eventToken || !t) {
+  if(!eventToken || !t){
     setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.');
   } else {
     eventInfo.textContent = `Wydarzenie: ${eventToken}`;
@@ -85,37 +90,53 @@
     get(k){ try { return localStorage.getItem(k); } catch(e){ return memoryStore[k] ?? null; } },
     set(k,v){ try { localStorage.setItem(k,v); } catch(e){ memoryStore[k]=String(v); } }
   };
-
   function makeUUID(){
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      try { return crypto.randomUUID(); } catch(e){}
-    }
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) try { return crypto.randomUUID(); } catch(e){}
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues){
       const b = new Uint8Array(16); crypto.getRandomValues(b);
-      b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
-      const h = [...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+      b[6]=(b[6]&0x0f)|0x40; b[8]=(b[8]&0x3f)|0x80;
+      const h=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
       return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
     }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
-      const r = Math.random()*16|0, v = c==='x'? r : (r&0x3|0x8);
-      return v.toString(16);
-    });
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{ const r=Math.random()*16|0, v=c==='x'?r:(r&0x3|0x8); return v.toString(16); });
   }
-
   const UUID_KEY = 'qrphoto_uuid';
   let uuid = safeStorage.get(UUID_KEY);
-  if (!uuid) { uuid = makeUUID(); safeStorage.set(UUID_KEY, uuid); }
+  if(!uuid){ uuid = makeUUID(); safeStorage.set(UUID_KEY, uuid); }
   uuidInfo.textContent = 'UUID: ' + uuid;
 
-  window.addEventListener('error', (e)=> setErr('Błąd skryptu: ' + (e.message || 'nieznany')));
-  window.addEventListener('unhandledrejection', (e)=> setErr('Błąd obietnicy: ' + (e.reason && e.reason.message || 'nieznany')));
+  function detectInApp(){
+    const ua = navigator.userAgent || navigator.vendor || '';
+    const tests = ['FBAN','FBAV','Instagram','Line','Twitter','LinkedInApp','Vkontakte','Telegram','WhatsApp'];
+    for(const t of tests) if(ua.indexOf(t) !== -1) return t;
+    return null;
+  }
+  const inApp = detectInApp();
+  if(inApp){
+    inAppBox.style.display = 'block';
+    inAppBox.innerHTML = `<strong>Wygląda na wbudowaną przeglądarkę (${inApp}).</strong>
+      Wiele aplikacji nie pozwala na dostęp do kamery. Najlepiej otworzyć stronę w systemowej przeglądarce (Safari/Chrome).`;
+    openInBrowserBtn.style.display = 'inline-block';
+  }
+
+  async function checkPermissionState(){
+    if(!navigator.permissions || !navigator.permissions.query) return null;
+    try {
+      const p = await navigator.permissions.query({ name: 'camera' });
+      return p.state;
+    } catch(e){
+      return null;
+    }
+  }
+
+  openInBrowserBtn.addEventListener('click', ()=>{
+    window.open(location.href, '_blank', 'noopener');
+  });
 
   let activeStream = null;
-  let pickedFile = null;
-
-  async function startCameraAndCaptureThenUpload(){
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setErr('getUserMedia niedostępny w tej przeglądarce. Otwieram selektor pliku.');
+  async function startCamera(){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      setErr('getUserMedia niedostępny (webview lub stara przeglądarka). Otwieram selektor pliku.');
       fileInput.click();
       return;
     }
@@ -125,100 +146,135 @@
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       activeStream = stream;
       camVid.srcObject = stream;
-      await camVid.play().catch(()=>{});
-
-      await new Promise(r => setTimeout(r, 500));
-
-      const trackSettings = stream.getVideoTracks()[0].getSettings();
-      const w = trackSettings.width || camVid.videoWidth || 1280;
-      const h = trackSettings.height || camVid.videoHeight || Math.round(w * 3/4);
-      camCanvas.width = w;
-      camCanvas.height = h;
-      const ctx = camCanvas.getContext('2d');
-      ctx.drawImage(camVid, 0, 0, w, h);
-
-      setOk('Robię zdjęcie i wysyłam...');
-      camCanvas.toBlob(async (blob) => {
-        if (!blob) { setErr('Nie udało się przygotować obrazu.'); stopCamera(); return; }
-        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-        try {
-          await upload(file);
-          stopCamera();
-        } catch(e){
-          stopCamera();
-        }
-      }, 'image/jpeg', 0.92);
+      videoWrap.style.display = 'block';
+      camVid.play().catch(()=>{});
+      setOk('Kamera uruchomiona — dotknij podglądu lub przycisk, aby zrobić zdjęcie.');
+      hintBox.textContent = 'Dotknij podglądu aby zrobić zdjęcie. Zdjęcie zostanie wysłane natychmiast.';
     } catch(err){
       setErr('Brak dostępu do kamery lub błąd: ' + (err && err.message || err));
-      try { fileInput.click(); } catch(e){}
+      providePermissionHelp(err);
     }
   }
 
   function stopCamera(){
-    if (activeStream) {
-      activeStream.getTracks().forEach(t => t.stop());
+    if(activeStream){
+      activeStream.getTracks().forEach(t=>t.stop());
       activeStream = null;
     }
-    try { camVid.srcObject = null; } catch(e){}
+    try{ camVid.srcObject = null; } catch(e){}
+    videoWrap.style.display = 'none';
   }
 
-  function upload(file){
-    resetBar();
-    setBar(5);
-    setOk('Wysyłanie...');
+  function captureAndUpload(){
+    if(!camVid || camVid.readyState < 2){
+      setErr('Kamera niegotowa.');
+      return;
+    }
+    const w = camVid.videoWidth || 1280;
+    const h = camVid.videoHeight || 720;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(camVid, 0, 0, w, h);
+    canvas.toBlob(async (blob)=>{
+      if(!blob){ setErr('Błąd tworzenia obrazu'); return; }
+      setOk('Wysyłam zdjęcie...');
+      try { await uploadFile(new File([blob],'photo.jpg',{type:'image/jpeg'})); setOk('Wysłano ✅'); }
+      catch(e){}
+    }, 'image/jpeg', 0.9);
+  }
+
+  function uploadFile(file){
     const fd = new FormData();
     fd.append('file', file, file.name || 'photo.jpg');
     fd.append('event', eventToken);
     fd.append('uuid', uuid);
     fd.append('t', t);
-
-    return new Promise((resolve,reject)=>{
+    return new Promise((res, rej)=>{
       const xhr = new XMLHttpRequest();
       xhr.open('POST', WORKER_URL, true);
       xhr.timeout = 30000;
-
-      xhr.upload.onprogress = (evt) => { if (evt.lengthComputable) setBar((evt.loaded/evt.total)*100); };
-
-      xhr.onload = () => {
-        let resp = {};
-        try { resp = JSON.parse(xhr.responseText || '{}'); } catch(e){}
-        if (xhr.status >= 200 && xhr.status < 300) {
-          setBar(100);
-          setOk('Wysłano pomyślnie ✅\n' + (resp.message || ''));
-          againBtn.classList.remove('hide');
-          resolve(resp);
-        } else {
-          setErr('Błąd: ' + (resp.error || xhr.status + ' ' + xhr.statusText));
-          reject(new Error(resp.error || xhr.statusText));
-        }
+      xhr.upload.onprogress = (e)=>{};
+      xhr.onload = ()=>{
+        let json = {};
+        try{ json = JSON.parse(xhr.responseText || '{}'); }catch(e){}
+        if(xhr.status>=200 && xhr.status<300){ res(json); }
+        else{ setErr('Błąd uploadu: '+(json.error || xhr.status)); rej(json); }
       };
-      xhr.onerror = () => { setErr('Błąd sieci.'); reject(new Error('network')); };
-      xhr.ontimeout = () => { setErr('Przekroczono czas połączenia.'); reject(new Error('timeout')); };
-
-      try { xhr.send(fd); } catch(e){ setErr('Błąd wysyłania: ' + e.message); reject(e); }
+      xhr.onerror = ()=>{ setErr('Błąd sieci podczas wysyłania'); rej(new Error('network')); };
+      xhr.ontimeout = ()=>{ setErr('Timeout podczas uploadu'); rej(new Error('timeout')); };
+      try{ xhr.send(fd); }catch(e){ setErr('Błąd wysyłania: '+e.message); rej(e); }
     });
   }
 
-  openBtn.addEventListener('click', async () => {
-    await startCameraAndCaptureThenUpload();
+  fileInput.addEventListener('change', async ()=>{
+    const f = fileInput.files && fileInput.files[0];
+    if(!f){ setErr('Brak pliku'); return; }
+    setOk('Wybrano plik — wysyłam...');
+    try{ await uploadFile(f); setOk('Wysłano ✅'); } catch(e){}
   });
 
-  fileInput.addEventListener('change', async () => {
-    const f = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-    if (!f) { setErr('Brak pliku.'); return; }
-    setOk('Wybrano zdjęcie — wysyłam...');
+  openBtn.addEventListener('click', async ()=>{
+    if(inApp){
+      setErr('Wykryto wbudowaną przeglądarkę; funkcje kamery mogą być zablokowane. Spróbuj "Otwórz w przeglądarce".');
+    }
+    await startCamera();
+  });
+
+  captureBtn.addEventListener('click', captureAndUpload);
+  camVid.addEventListener('click', captureAndUpload);
+
+  retryPermBtn.addEventListener('click', async ()=>{
+    setOk('Sprawdzam stan uprawnień...');
+    const state = await checkPermissionState();
+    if(state === 'granted'){
+      setOk('Uprawnienie przyznane — uruchamiam kamerę...');
+      await startCamera();
+      return;
+    }
+    if(state === 'prompt' || state === null){
+      setOk('Poproszę o dostęp do kamery ponownie...');
+      await startCamera();
+      return;
+    }
+    if(state === 'denied'){
+      setErr('Uprawnienia są zablokowane. Otwórz ustawienia przeglądarki/urządzenia i włącz dostęp do kamery dla tej strony.');
+      showPermissionInstructions();
+      return;
+    }
+    setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub użyj przycisku "Uruchom kamerę / wybierz plik".');
+  });
+
+  async function checkPermissionState(){
+    if(!navigator.permissions || !navigator.permissions.query) return null;
     try {
-      await upload(f);
-    } catch(e){}
-  });
+      const p = await navigator.permissions.query({ name: 'camera' });
+      p.onchange = ()=> { console.log('permissions camera change', p.state); };
+      return p.state;
+    } catch(e){
+      return null;
+    }
+  }
 
-  againBtn.addEventListener('click', () => {
-    try { fileInput.value = ''; } catch(e){}
-    resetBar(); setOk('Gotowy na kolejne zdjęcie.'); againBtn.classList.add('hide');
-  });
+  function providePermissionHelp(err){
+    const msg = (err && err.name) ? err.name : String(err);
+    setErr('Dostęp do kamery odrzucony lub zablokowany: ' + msg + '\nZobacz instrukcje poniżej.');
+    showPermissionInstructions();
+  }
 
-  window.addEventListener('pagehide', stopCamera);
-  window.addEventListener('beforeunload', stopCamera);
+  function showPermissionInstructions(){
+    inAppBox.style.display = 'block';
+    inAppBox.innerHTML = `<strong>Jak odblokować kamerę?</strong>
+      <ol>
+        <li>Jeśli jesteś w aplikacji (Facebook/Instagram) — wybierz "Otwórz w przeglądarce" (przycisk powyżej) i spróbuj ponownie.</li>
+        <li>iOS: Ustawienia → Safari (lub: Ustawienia → [nazwa przeglądarki]) → Kamera → ustaw na "Zezwól".</li>
+        <li>Android: Ustawienia → Aplikacje → Chrome (lub inna) → Uprawnienia → Kamera → Zezwól.</li>
+        <li>Możesz też usunąć blokadę dla tej strony w ustawieniach strony (Site settings → Camera).</li>
+      </ol>
+      Po zmienieniu ustawień wróć na tę stronę i naciśnij "Sprawdź uprawnienia".`;
+  }
+
+  window.addEventListener('pagehide', ()=>{ if(activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
 
 })();
 </script>
