@@ -5,54 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Prześlij zdjęcie</title>
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      margin: 0; padding: 16px;
-      background: #0b0c10; color: #e8e8e8;
-    }
-    .card {
-      max-width: 560px; margin: 0 auto;
-      background: #121317; border: 1px solid #23242a;
-      border-radius: 16px; padding: 16px;
-      box-shadow: 0 6px 18px rgba(0,0,0,.3);
-    }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background:#0b0c10; color:#e8e8e8; }
+    .card { max-width: 560px; margin: 0 auto; background:#121317; border:1px solid #23242a; border-radius:16px; padding:16px; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
     h1 { font-size: 1.35rem; margin: 0 0 8px; }
-    .muted { color: #a7a7a7; font-size: .95rem; }
-    .status {
-      margin-top: 12px; padding: 10px; border-radius: 10px;
-      background: #0e1116; border: 1px solid #1f2530;
-      white-space: pre-wrap;
-    }
-    .ok { border-color: #2a5; }
-    .err { border-color: #d55; }
-    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .hide { display: none; }
-    .pill {
-      border: 1px dashed #2b2e36; padding: 6px 10px;
-      border-radius: 999px; font-size: .85rem; color: #bbc;
-    }
+    .muted { color:#a7a7a7; font-size:.95rem; }
+    .status { margin-top:12px; padding:10px; border-radius:10px; background:#0e1116; border:1px solid #1f2530; white-space:pre-wrap; }
+    .ok { border-color:#2a5; }
+    .err { border-color:#d55; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .hide { display:none !important; }
+    .pill { border:1px dashed #2b2e36; padding:6px 10px; border-radius:999px; font-size:.85rem; color:#bbc; }
     .progress { height: 8px; background: #1c1e24; border-radius: 999px; overflow: hidden; margin-top: 12px; }
     .progress > div { height: 100%; width: 0%; background: #1f88ff; transition: width .2s ease; }
-
-    .btnlike {
-      display: inline-block;
-      background: #1f88ff; color: #fff;
-      padding: 12px 16px; border-radius: 10px;
-      cursor: pointer; user-select: none;
-      text-align: center;
-    }
-    button {
-      font: inherit; background: #1f88ff; color: #fff;
-      border: none; padding: 12px 16px;
-      border-radius: 10px; cursor: pointer;
-    }
-    input[type=file] {
-      position: fixed; left: -9999px;
-      width: 1px; height: 1px; opacity: 0;
-    }
+    .btnlike { display:inline-block; background:#1f88ff; color:#fff; padding:12px 16px; border-radius:10px; cursor:pointer; user-select:none; text-align:center; }
+    button { font: inherit; background:#1f88ff; color:#fff; border:none; padding:12px 16px; border-radius:10px; cursor:pointer; }
+    input[type=file] { position:fixed; left:-9999px; width:1px; height:1px; opacity:0; }
+    .banner { background:#201a00; color:#ffd66b; border:1px solid #3a2d00; padding:10px; border-radius:10px; margin: 0 auto 12px; max-width:560px; }
+    .banner strong { color:#ffea9a; }
+    .inline-link { color:#9bc3ff; text-decoration: underline; cursor: pointer; }
   </style>
 </head>
 <body>
+  <div id="inappBanner" class="banner hide">
+    <strong>Uwaga:</strong> Otworzyłeś link w przeglądarce wbudowanej (np. Instagram/Facebook).
+    Te przeglądarki często blokują wybór zdjęcia. Dotknij <span class="inline-link" id="openExtern">otwórz w Safari/Chrome</span>
+    lub użyj przycisku „⋯” / „•••” i wybierz <em>Otwórz w Safari</em>.
+  </div>
+
   <div class="card">
     <h1>Dodaj zdjęcie do wydarzenia</h1>
     <div class="muted" id="eventInfo">Sprawdzam token...</div>
@@ -67,7 +46,7 @@
     <input id="file" type="file" accept="image/*" capture="environment" />
 
     <div class="row">
-      <label for="file" id="openLabel" class="btnlike">Zrób / wybierz zdjęcie</label>
+      <label for="file" id="openLabel" class="btnlike" role="button" tabindex="0" aria-controls="file">Zrób / wybierz zdjęcie</label>
       <button id="sendBtn" type="button" disabled>Wyślij</button>
       <button id="againBtn" type="button" class="hide">Wyślij kolejne</button>
     </div>
@@ -89,7 +68,28 @@
   const fileInput = document.getElementById('file');
   const sendBtn = document.getElementById('sendBtn');
   const againBtn = document.getElementById('againBtn');
+  const openLabel = document.getElementById('openLabel');
+  const inappBanner = document.getElementById('inappBanner');
+  const openExtern = document.getElementById('openExtern');
   const bar = document.getElementById('bar');
+
+  const ua = navigator.userAgent || navigator.vendor || '';
+  const isInstagram = /Instagram/i.test(ua);
+  const isFB = /FBAN|FBAV|Facebook/i.test(ua);
+  const isTikTok = /TikTok|Musical\.ly/i.test(ua);
+  const isLine = / Line\//i.test(ua);
+  const isInIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
+  const isInApp = isInstagram || isFB || isTikTok || isLine || isInIframe;
+
+  if (isInApp) {
+    inappBanner.classList.remove('hide');
+  }
+  if (openExtern) {
+    openExtern.addEventListener('click', () => {
+      try { window.location.href = location.href; } catch(e){}
+      alert('Jeśli strona otworzy się w tej samej aplikacji, użyj menu „⋯” → „Otwórz w Safari/Chrome”.');
+    });
+  }
 
   if (!eventToken || !t) {
     setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.');
@@ -114,6 +114,13 @@
   function setBar(p){ bar.style.width = Math.max(0, Math.min(100, p)) + '%'; }
 
   let pickedFile = null;
+
+  openLabel.addEventListener('click', () => {
+    try { fileInput.click(); } catch {}
+  });
+  openLabel.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); try { fileInput.click(); } catch {} }
+  });
 
   fileInput.addEventListener('change', () => {
     pickedFile = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
@@ -154,12 +161,10 @@
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', WORKER_URL, true);
-    xhr.timeout = 30000;
+    xhr.timeout = 45000;
 
     xhr.upload.onprogress = (evt) => {
-      if (evt.lengthComputable) {
-        setBar((evt.loaded / evt.total) * 100);
-      }
+      if (evt.lengthComputable) setBar((evt.loaded / evt.total) * 100);
     };
 
     const done = new Promise((resolve, reject) => {
@@ -172,8 +177,8 @@
           againBtn.classList.remove('hide');
           resolve(resp);
         } else {
-          setErr('Błąd: ' + (resp.error || xhr.statusText));
-          reject(new Error(resp.error || xhr.statusText));
+          setErr('Błąd: ' + (resp.error || xhr.statusText || xhr.status));
+          reject(new Error(resp.error || xhr.statusText || String(xhr.status)));
         }
       };
       xhr.onerror = () => { setErr('Błąd sieci.'); reject(new Error('network')); };
