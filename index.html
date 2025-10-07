@@ -6,45 +6,20 @@
   <title>Prześlij zdjęcie</title>
   <style>
     :root { color-scheme: dark; }
-    body {
-      font-family: system-ui, sans-serif;
-      margin: 0; padding: 16px;
-      background: #0b0c10; color: #e8e8e8;
-    }
-    .card {
-      max-width: 560px; margin: 0 auto;
-      background: #121317; border: 1px solid #23242a;
-      border-radius: 16px; padding: 16px;
-      box-shadow: 0 6px 18px rgba(0,0,0,.3);
-    }
-    h1 { font-size: 1.35rem; margin: 0 0 8px; }
-    .muted { color: #a7a7a7; font-size: .95rem; }
-    .status {
-      margin-top: 12px; padding: 10px; border-radius: 10px;
-      background: #0e1116; border: 1px solid #1f2530;
-      white-space: pre-wrap; min-height: 2.4em;
-    }
-    .ok { border-color: #2a5; }
-    .err { border-color: #d55; }
-    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .hide { display: none !important; }
-    .pill {
-      border: 1px dashed #2b2e36; padding: 6px 10px;
-      border-radius: 999px; font-size: .85rem; color: #bbc;
-    }
-    .progress { height: 8px; background: #1c1e24; border-radius: 999px; overflow: hidden; margin-top: 12px; }
-    .progress > div { height: 100%; width: 0%; background: #1f88ff; transition: width .2s ease; }
-    button, .btnlike {
-      font: inherit;
-      background: #1f88ff; color: #fff;
-      border: none; padding: 12px 16px;
-      border-radius: 10px; cursor: pointer;
-    }
-    button[disabled] { opacity: .6; cursor: not-allowed; }
-    input[type=file] {
-      position: absolute; left: -9999px; top: 0;
-      width: 1px; height: 1px; opacity: 0;
-    }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background:#0b0c10; color:#e8e8e8; }
+    .card { max-width: 560px; margin: 0 auto; background:#121317; border: 1px solid #23242a; border-radius:16px; padding:16px; box-shadow:0 6px 18px rgba(0,0,0,.3); }
+    h1{ font-size:1.35rem; margin:0 0 8px; }
+    .muted{ color:#a7a7a7; font-size:.95rem; }
+    .status{ margin-top:12px; padding:10px; border-radius:10px; background:#0e1116; border:1px solid #1f2530; white-space:pre-wrap; min-height:2.4em; }
+    .ok{ border-color:#2a5; } .err{ border-color:#d55; }
+    .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .pill{ border:1px dashed #2b2e36; padding:6px 10px; border-radius:999px; font-size:.85rem; color:#bbc; }
+    .progress{ height:8px; background:#1c1e24; border-radius:999px; overflow:hidden; margin-top:12px; }
+    .progress>div{ height:100%; width:0%; background:#1f88ff; transition:width .2s ease; }
+    button, .btnlike{ font:inherit; background:#1f88ff; color:#fff; border:none; padding:12px 16px; border-radius:10px; cursor:pointer; }
+    button[disabled]{ opacity:.6; cursor:not-allowed; }
+    input[type=file]{ position:absolute; left:-9999px; top:0; width:1px; height:1px; opacity:0; }
+    video{ display:none; }
   </style>
 </head>
 <body>
@@ -63,7 +38,7 @@
 
     <div class="row">
       <button id="openBtn" type="button">Zrób / wybierz zdjęcie</button>
-      <button id="sendBtn" type="button" disabled>Wyślij</button>
+      <button id="sendBtn" type="button" disabled class="hide">Wyślij</button>
       <button id="againBtn" type="button" class="hide">Wyślij kolejne</button>
     </div>
 
@@ -71,35 +46,15 @@
     <div class="muted">Link jest wspólny dla całego wydarzenia. Jakość zachowana 1:1.</div>
   </div>
 
+  <video id="camVid" autoplay playsinline muted></video>
+  <canvas id="camCanvas" style="display:none"></canvas>
+
 <script>
 (function(){
   "use strict";
 
-  const memoryStore = {};
-  const safeStorage = {
-    get(k){ try { return window.localStorage.getItem(k); } catch(e){ return memoryStore[k] ?? null; } },
-    set(k,v){ try { window.localStorage.setItem(k,v); } catch(e){ memoryStore[k]=String(v); } }
-  };
-
-  function makeUUID(){
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      try { return crypto.randomUUID(); } catch(e){}
-    }
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-      const b = new Uint8Array(16); crypto.getRandomValues(b);
-      b[6] = (b[6] & 0x0f) | 0x40;
-      b[8] = (b[8] & 0x3f) | 0x80;
-      const h = [...b].map(x=>x.toString(16).padStart(2,'0')).join('');
-      return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
-    }
-    const s = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
-      const r = Math.random()*16|0, v = c==='x'? r : (r&0x3|0x8);
-      return v.toString(16);
-    });
-    return s;
-  }
-
   const WORKER_URL = 'https://wesele-worker.wesele2025ak.workers.dev/upload';
+
   const qs = new URLSearchParams(location.search);
   const eventToken = qs.get('event') || '';
   const t = qs.get('t') || '';
@@ -111,13 +66,8 @@
   const sendBtn = document.getElementById('sendBtn');
   const againBtn = document.getElementById('againBtn');
   const bar = document.getElementById('bar');
-
-  window.addEventListener('error', (e)=>{
-    setErr('Błąd skryptu: ' + (e.message || 'nieznany'));
-  });
-  window.addEventListener('unhandledrejection', (e)=>{
-    setErr('Błąd obietnicy: ' + (e.reason && e.reason.message || 'nieznany'));
-  });
+  const camVid = document.getElementById('camVid');
+  const camCanvas = document.getElementById('camCanvas');
 
   function setOk(msg){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = msg; }
   function setErr(msg){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = msg; }
@@ -130,53 +80,92 @@
     eventInfo.textContent = `Wydarzenie: ${eventToken}`;
   }
 
+  const memoryStore = {};
+  const safeStorage = {
+    get(k){ try { return localStorage.getItem(k); } catch(e){ return memoryStore[k] ?? null; } },
+    set(k,v){ try { localStorage.setItem(k,v); } catch(e){ memoryStore[k]=String(v); } }
+  };
+
+  function makeUUID(){
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      try { return crypto.randomUUID(); } catch(e){}
+    }
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const b = new Uint8Array(16); crypto.getRandomValues(b);
+      b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+      const h = [...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+      return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+      const r = Math.random()*16|0, v = c==='x'? r : (r&0x3|0x8);
+      return v.toString(16);
+    });
+  }
+
   const UUID_KEY = 'qrphoto_uuid';
   let uuid = safeStorage.get(UUID_KEY);
-  if (!uuid) {
-    uuid = makeUUID();
-    safeStorage.set(UUID_KEY, uuid);
-  }
+  if (!uuid) { uuid = makeUUID(); safeStorage.set(UUID_KEY, uuid); }
   uuidInfo.textContent = 'UUID: ' + uuid;
 
+  window.addEventListener('error', (e)=> setErr('Błąd skryptu: ' + (e.message || 'nieznany')));
+  window.addEventListener('unhandledrejection', (e)=> setErr('Błąd obietnicy: ' + (e.reason && e.reason.message || 'nieznany')));
+
+  let activeStream = null;
   let pickedFile = null;
 
-  openBtn.addEventListener('click', () => {
-    try { fileInput.click(); }
-    catch(e){ setErr('Nie mogę otworzyć selektora pliku: ' + e.message); }
-  });
-
-  fileInput.addEventListener('change', () => {
-    pickedFile = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-    if (pickedFile) {
-      setOk('Wybrano zdjęcie. Kliknij „Wyślij”.');
-      sendBtn.disabled = false;
-      againBtn.classList.add('hide');
-    } else {
-      sendBtn.disabled = true;
+  async function startCameraAndCaptureThenUpload(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErr('getUserMedia niedostępny w tej przeglądarce. Otwieram selektor pliku.');
+      fileInput.click();
+      return;
     }
-  });
-
-  sendBtn.addEventListener('click', async () => {
-    if (!pickedFile) return;
+    setOk('Proszę o dostęp do kamery...');
     try {
-      await upload(pickedFile);
-      pickedFile = null;
-      sendBtn.disabled = true;
-    } catch(e){}
-  });
+      const constraints = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      activeStream = stream;
+      camVid.srcObject = stream;
+      await camVid.play().catch(()=>{});
 
-  againBtn.addEventListener('click', () => {
-    try { fileInput.value = ''; } catch(_) {}
-    pickedFile = null;
-    resetBar();
-    setOk('Gotowy na kolejne zdjęcie.');
-    againBtn.classList.add('hide');
-  });
+      await new Promise(r => setTimeout(r, 500));
 
-  async function upload(file){
+      const trackSettings = stream.getVideoTracks()[0].getSettings();
+      const w = trackSettings.width || camVid.videoWidth || 1280;
+      const h = trackSettings.height || camVid.videoHeight || Math.round(w * 3/4);
+      camCanvas.width = w;
+      camCanvas.height = h;
+      const ctx = camCanvas.getContext('2d');
+      ctx.drawImage(camVid, 0, 0, w, h);
+
+      setOk('Robię zdjęcie i wysyłam...');
+      camCanvas.toBlob(async (blob) => {
+        if (!blob) { setErr('Nie udało się przygotować obrazu.'); stopCamera(); return; }
+        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+        try {
+          await upload(file);
+          stopCamera();
+        } catch(e){
+          stopCamera();
+        }
+      }, 'image/jpeg', 0.92);
+    } catch(err){
+      setErr('Brak dostępu do kamery lub błąd: ' + (err && err.message || err));
+      try { fileInput.click(); } catch(e){}
+    }
+  }
+
+  function stopCamera(){
+    if (activeStream) {
+      activeStream.getTracks().forEach(t => t.stop());
+      activeStream = null;
+    }
+    try { camVid.srcObject = null; } catch(e){}
+  }
+
+  function upload(file){
     resetBar();
+    setBar(5);
     setOk('Wysyłanie...');
-
     const fd = new FormData();
     fd.append('file', file, file.name || 'photo.jpg');
     fd.append('event', eventToken);
@@ -188,13 +177,11 @@
       xhr.open('POST', WORKER_URL, true);
       xhr.timeout = 30000;
 
-      xhr.upload.onprogress = (evt) => {
-        if (evt.lengthComputable) setBar((evt.loaded / evt.total) * 100);
-      };
+      xhr.upload.onprogress = (evt) => { if (evt.lengthComputable) setBar((evt.loaded/evt.total)*100); };
 
       xhr.onload = () => {
         let resp = {};
-        try { resp = JSON.parse(xhr.responseText || '{}'); } catch(_){}
+        try { resp = JSON.parse(xhr.responseText || '{}'); } catch(e){}
         if (xhr.status >= 200 && xhr.status < 300) {
           setBar(100);
           setOk('Wysłano pomyślnie ✅\n' + (resp.message || ''));
@@ -211,6 +198,28 @@
       try { xhr.send(fd); } catch(e){ setErr('Błąd wysyłania: ' + e.message); reject(e); }
     });
   }
+
+  openBtn.addEventListener('click', async () => {
+    await startCameraAndCaptureThenUpload();
+  });
+
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    if (!f) { setErr('Brak pliku.'); return; }
+    setOk('Wybrano zdjęcie — wysyłam...');
+    try {
+      await upload(f);
+    } catch(e){}
+  });
+
+  againBtn.addEventListener('click', () => {
+    try { fileInput.value = ''; } catch(e){}
+    resetBar(); setOk('Gotowy na kolejne zdjęcie.'); againBtn.classList.add('hide');
+  });
+
+  window.addEventListener('pagehide', stopCamera);
+  window.addEventListener('beforeunload', stopCamera);
+
 })();
 </script>
 </body>
