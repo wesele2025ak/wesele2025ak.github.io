@@ -16,13 +16,27 @@
   button{ font:inherit; background:#1f88ff; color:#fff; border:none; padding:10px 14px; border-radius:10px; cursor:pointer }
   button[disabled]{ opacity:.6; cursor:not-allowed }
   .pill{ display:inline-block; border:1px dashed #2b2e36; padding:6px 10px; border-radius:999px; font-size:.85rem; color:#bbc }
-  .videoWrap{ margin-top:12px; position:relative; border-radius:10px; overflow:hidden; background:#000 }
-  video{ width:100%; height:auto; display:block; background:#000 }
+  .videoWrap{ margin-top:12px; position:relative; border-radius:10px; overflow:hidden; background:#000; min-height:200px; display:none }
+  video{ width:100%; height:auto; display:block; background:#000; transform-origin:center center; }
   .overlayBtn{ position:absolute; right:12px; bottom:12px; z-index:5 }
   .hint{ margin-top:8px; font-size:.9rem; color:#cfcfcf }
   .danger{ color:#ffb3b3 }
   .inApp{ margin-top:8px; padding:8px; background:#16181b; border:1px solid #2a2d33; border-radius:8px }
   input[type=file]{ position:absolute; left:-9999px }
+  .flash {
+    position:fixed; left:0; top:0; right:0; bottom:0; pointer-events:none;
+    background:rgba(255,255,255,0); opacity:0; transition:opacity .18s ease;
+    mix-blend-mode:screen; z-index:9999;
+  }
+  .flash.do { opacity:0.85; background: white; transition:opacity .18s ease; }
+  .toast {
+    position:fixed; left:50%; transform:translateX(-50%); bottom:18px;
+    padding:10px 16px; border-radius:10px; background:rgba(20,20,20,0.9); color:#fff;
+    box-shadow:0 6px 18px rgba(0,0,0,.5); font-weight:600; z-index:9999; display:none;
+  }
+  .toast.show { display:block; animation:toast-in .2s ease; }
+  @keyframes toast-in { from { transform:translateX(-50%) translateY(8px); opacity:0 } to { transform:translateX(-50%) translateY(0); opacity:1 } }
+  .openCameraFallback { display:none; margin-top:8px }
 </style>
 </head>
 <body>
@@ -35,7 +49,7 @@
     <div style="height:10px"></div>
     <span class="pill" id="uuidInfo">UUID: …</span>
 
-    <div class="videoWrap" id="videoWrap" aria-hidden="true" style="display:none">
+    <div class="videoWrap" id="videoWrap" aria-hidden="true">
       <video id="camVid" autoplay playsinline muted></video>
       <button class="overlayBtn" id="captureBtn" title="Zrób zdjęcie">Zrób zdjęcie</button>
     </div>
@@ -47,13 +61,18 @@
       <input id="file" type="file" accept="image/*" capture="environment" />
     </div>
 
-    <div class="hint" id="hintBox">Dotknij podglądu, aby zrobić zdjęcie (po uruchomieniu kamery). Jeśli przeglądarka nie pyta o dostęp — zobacz instrukcje poniżej.</div>
+    <div class="hint" id="hintBox">Naciśnij "Uruchom kamerę", następnie przycisk "Zrób zdjęcie". Po zrobieniu — zdjęcie wysyłane jest natychmiast.</div>
 
     <div class="inApp" id="inAppBox" style="display:none"></div>
+
+    <button class="openCameraFallback" id="openCameraFallback">Uruchom kamerę</button>
 
     <div style="height:10px"></div>
     <div class="muted">Link jest wspólny dla wydarzenia. Upload następuje od razu po zrobieniu zdjęcia.</div>
   </div>
+
+  <div class="flash" id="flash"></div>
+  <div class="toast" id="toast">Wysłano</div>
 
 <script>
 (function(){
@@ -63,6 +82,7 @@
   const qs = new URLSearchParams(location.search);
   const eventToken = qs.get('event') || '';
   const t = qs.get('t') || '';
+
   const statusBox = document.getElementById('statusBox');
   const eventInfo = document.getElementById('eventInfo');
   const uuidInfo = document.getElementById('uuidInfo');
@@ -75,23 +95,20 @@
   const captureBtn = document.getElementById('captureBtn');
   const hintBox = document.getElementById('hintBox');
   const inAppBox = document.getElementById('inAppBox');
+  const flashEl = document.getElementById('flash');
+  const toast = document.getElementById('toast');
+  const openCameraFallback = document.getElementById('openCameraFallback');
 
   function setOk(msg){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = msg; }
   function setErr(msg){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = msg; }
 
-  if(!eventToken || !t){
-    setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.');
-  } else {
-    eventInfo.textContent = `Wydarzenie: ${eventToken}`;
-  }
+  if(!eventToken || !t){ setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.'); }
+  else { eventInfo.textContent = `Wydarzenie: ${eventToken}`; }
 
   const memoryStore = {};
-  const safeStorage = {
-    get(k){ try { return localStorage.getItem(k); } catch(e){ return memoryStore[k] ?? null; } },
-    set(k,v){ try { localStorage.setItem(k,v); } catch(e){ memoryStore[k]=String(v); } }
-  };
+  const safeStorage = { get(k){ try{ return localStorage.getItem(k)}catch(e){return memoryStore[k]??null}}, set(k,v){ try{ localStorage.setItem(k,v)}catch(e){ memoryStore[k]=String(v)}}};
   function makeUUID(){
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) try { return crypto.randomUUID(); } catch(e){}
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) try{ return crypto.randomUUID(); } catch(e){}
     if (typeof crypto !== 'undefined' && crypto.getRandomValues){
       const b = new Uint8Array(16); crypto.getRandomValues(b);
       b[6]=(b[6]&0x0f)|0x40; b[8]=(b[8]&0x3f)|0x80;
@@ -108,33 +125,68 @@
   function detectInApp(){
     const ua = navigator.userAgent || navigator.vendor || '';
     const tests = ['FBAN','FBAV','Instagram','Line','Twitter','LinkedInApp','Vkontakte','Telegram','WhatsApp'];
-    for(const t of tests) if(ua.indexOf(t) !== -1) return t;
+    for(const t of tests) if(ua.indexOf(t)!==-1) return t;
     return null;
   }
   const inApp = detectInApp();
-  if(inApp){
-    inAppBox.style.display = 'block';
-    inAppBox.innerHTML = `<strong>Wygląda na wbudowaną przeglądarkę (${inApp}).</strong>
-      Wiele aplikacji nie pozwala na dostęp do kamery. Najlepiej otworzyć stronę w systemowej przeglądarce (Safari/Chrome).`;
-    openInBrowserBtn.style.display = 'inline-block';
+  if(inApp){ inAppBox.style.display='block'; inAppBox.innerHTML = `<strong>Wygląda na wbudowaną przeglądarkę (${inApp}).</strong> Jeśli kamera nie działa, kliknij "Otwórz w przeglądarce".`; openInBrowserBtn.style.display='inline-block'; }
+
+  window.addEventListener('error',(e)=> setErr('Błąd skryptu: '+(e.message||'nieznany')));
+  window.addEventListener('unhandledrejection',(e)=> setErr('Błąd obietnicy: '+(e.reason && e.reason.message || 'nieznany')));
+
+  let activeStream = null;
+  let uploading = false;
+
+  function doFlash(){
+    flashEl.classList.add('do');
+    setTimeout(()=> flashEl.classList.remove('do'), 180);
+  }
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=> toast.classList.remove('show'), 2200);
   }
 
   async function checkPermissionState(){
     if(!navigator.permissions || !navigator.permissions.query) return null;
-    try {
+    try{
       const p = await navigator.permissions.query({ name: 'camera' });
+      p.onchange = ()=> console.log('permission change', p.state);
       return p.state;
-    } catch(e){
-      return null;
-    }
+    } catch(e){ return null; }
   }
 
-  openInBrowserBtn.addEventListener('click', ()=>{
-    window.open(location.href, '_blank', 'noopener');
-  });
+  let freezeTimer = null;
+  let lastVideoTime = 0;
+  function startFreezeWatcher(){
+    lastVideoTime = camVid.currentTime || 0;
+    if(freezeTimer) clearInterval(freezeTimer);
+    freezeTimer = setInterval(()=>{
+      if(!camVid || camVid.readyState < 2 || camVid.paused || camVid.ended){
+      }
+      const now = camVid.currentTime || 0;
+      if(now === lastVideoTime){
+        if(typeof lastVideoTime === 'number') {
+          lastVideoTime = { frozenSince: Date.now(), last: lastVideoTime };
+        } else if(lastVideoTime && (Date.now() - lastVideoTime.frozenSince) > 1500) {
+          handleCameraFreeze();
+        }
+      } else {
+        lastVideoTime = now;
+      }
+    }, 500);
+  }
+  function stopFreezeWatcher(){ if(freezeTimer) { clearInterval(freezeTimer); freezeTimer = null; lastVideoTime = 0; } }
 
-  let activeStream = null;
+  function handleCameraFreeze(){
+    stopCamera();
+    setErr('Podgląd kamery uległ zacięciu — podgląd wyłączony. Użyj przycisku aby ponownie uruchomić kamerę.');
+    openCameraFallback.style.display = 'inline-block';
+    videoWrap.style.display = 'none';
+  }
+
   async function startCamera(){
+    openCameraFallback.style.display = 'none';
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
       setErr('getUserMedia niedostępny (webview lub stara przeglądarka). Otwieram selektor pliku.');
       fileInput.click();
@@ -142,21 +194,23 @@
     }
     setOk('Proszę o dostęp do kamery...');
     try {
-      const constraints = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false };
+      const constraints = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio:false };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       activeStream = stream;
       camVid.srcObject = stream;
+      camVid.playsInline = true;
       videoWrap.style.display = 'block';
-      camVid.play().catch(()=>{});
-      setOk('Kamera uruchomiona — dotknij podglądu lub przycisk, aby zrobić zdjęcie.');
-      hintBox.textContent = 'Dotknij podglądu aby zrobić zdjęcie. Zdjęcie zostanie wysłane natychmiast.';
+      await camVid.play().catch(()=>{});
+      setOk('Kamera uruchomiona — naciśnij "Zrób zdjęcie".');
+      hintBox.textContent = 'Naciśnij "Zrób zdjęcie". Po zrobieniu zdjęcie zostanie wysłane natychmiast.';
+      startFreezeWatcher();
     } catch(err){
-      setErr('Brak dostępu do kamery lub błąd: ' + (err && err.message || err));
       providePermissionHelp(err);
     }
   }
 
   function stopCamera(){
+    stopFreezeWatcher();
     if(activeStream){
       activeStream.getTracks().forEach(t=>t.stop());
       activeStream = null;
@@ -165,23 +219,57 @@
     videoWrap.style.display = 'none';
   }
 
+  function getOrientationAngle(){
+    try {
+      if (screen && screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+    } catch(e){}
+    if(typeof window.orientation === 'number') return window.orientation;
+    return 0;
+  }
+
   function captureAndUpload(){
-    if(!camVid || camVid.readyState < 2){
-      setErr('Kamera niegotowa.');
-      return;
-    }
-    const w = camVid.videoWidth || 1280;
-    const h = camVid.videoHeight || 720;
+    if(uploading) return;
+    if(!camVid || camVid.readyState < 2){ setErr('Kamera niegotowa.'); return; }
+    uploading = true;
+    captureBtn.disabled = true;
+
+    doFlash();
+
+    const rawW = camVid.videoWidth || 1280;
+    const rawH = camVid.videoHeight || 720;
+    const angle = getOrientationAngle() || 0;
+    let cw = rawW, ch = rawH, rotate = 0;
+    const a = ((angle % 360) + 360) % 360;
+    if(a === 90 || a === 270){
+      cw = rawH; ch = rawW;
+    } else { cw = rawW; ch = rawH; }
+    rotate = a * Math.PI / 180;
+
     const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
+    canvas.width = cw;
+    canvas.height = ch;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(camVid, 0, 0, w, h);
-    canvas.toBlob(async (blob)=>{
-      if(!blob){ setErr('Błąd tworzenia obrazu'); return; }
-      setOk('Wysyłam zdjęcie...');
-      try { await uploadFile(new File([blob],'photo.jpg',{type:'image/jpeg'})); setOk('Wysłano ✅'); }
-      catch(e){}
-    }, 'image/jpeg', 0.9);
+
+    ctx.save();
+    ctx.translate(cw/2, ch/2);
+    ctx.rotate(rotate);
+    ctx.drawImage(camVid, -rawW/2, -rawH/2, rawW, rawH);
+    ctx.restore();
+
+    canvas.toBlob(async (blob) => {
+      if(!blob){ setErr('Nie udało się przygotować zdjęcia'); uploading=false; captureBtn.disabled=false; return; }
+      const file = new File([blob], 'photo.jpg', { type:'image/jpeg' });
+
+      try {
+        await uploadFile(file);
+        setOk('Wysłano ✅');
+        showToast('Wysłano');
+      } catch(e){
+      } finally {
+        uploading = false;
+        captureBtn.disabled = false;
+      }
+    }, 'image/jpeg', 0.92);
   }
 
   function uploadFile(file){
@@ -203,7 +291,7 @@
       };
       xhr.onerror = ()=>{ setErr('Błąd sieci podczas wysyłania'); rej(new Error('network')); };
       xhr.ontimeout = ()=>{ setErr('Timeout podczas uploadu'); rej(new Error('timeout')); };
-      try{ xhr.send(fd); }catch(e){ setErr('Błąd wysyłania: '+e.message); rej(e); }
+      try{ xhr.send(fd); } catch(e){ setErr('Błąd wysyłania: '+e.message); rej(e); }
     });
   }
 
@@ -211,53 +299,32 @@
     const f = fileInput.files && fileInput.files[0];
     if(!f){ setErr('Brak pliku'); return; }
     setOk('Wybrano plik — wysyłam...');
-    try{ await uploadFile(f); setOk('Wysłano ✅'); } catch(e){}
+    try{ await uploadFile(f); setOk('Wysłano ✅'); showToast('Wysłano'); } catch(e){}
   });
 
-  openBtn.addEventListener('click', async ()=>{
-    if(inApp){
-      setErr('Wykryto wbudowaną przeglądarkę; funkcje kamery mogą być zablokowane. Spróbuj "Otwórz w przeglądarce".');
-    }
-    await startCamera();
-  });
-
+  openBtn.addEventListener('click', async ()=>{ openCameraFallback.style.display='none'; await startCamera(); });
   captureBtn.addEventListener('click', captureAndUpload);
-  camVid.addEventListener('click', captureAndUpload);
+  openCameraFallback.addEventListener('click', async ()=>{ await startCamera(); openCameraFallback.style.display='none'; });
 
   retryPermBtn.addEventListener('click', async ()=>{
     setOk('Sprawdzam stan uprawnień...');
     const state = await checkPermissionState();
-    if(state === 'granted'){
-      setOk('Uprawnienie przyznane — uruchamiam kamerę...');
-      await startCamera();
-      return;
-    }
-    if(state === 'prompt' || state === null){
-      setOk('Poproszę o dostęp do kamery ponownie...');
-      await startCamera();
-      return;
-    }
-    if(state === 'denied'){
-      setErr('Uprawnienia są zablokowane. Otwórz ustawienia przeglądarki/urządzenia i włącz dostęp do kamery dla tej strony.');
-      showPermissionInstructions();
-      return;
-    }
-    setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub użyj przycisku "Uruchom kamerę / wybierz plik".');
+    if(state === 'granted'){ setOk('Uprawnienia przyznane — uruchamiam kamerę...'); await startCamera(); return; }
+    if(state === 'prompt' || state === null){ setOk('Spróbuję ponownie poprosić o dostęp...'); await startCamera(); return; }
+    if(state === 'denied'){ setErr('Uprawnzenie zablokowane. Zobacz instrukcje w polu poniżej.'); showPermissionInstructions(); return; }
+    setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub otwórz w innej przeglądarce.');
   });
 
   async function checkPermissionState(){
     if(!navigator.permissions || !navigator.permissions.query) return null;
     try {
       const p = await navigator.permissions.query({ name: 'camera' });
-      p.onchange = ()=> { console.log('permissions camera change', p.state); };
       return p.state;
-    } catch(e){
-      return null;
-    }
+    } catch(e){ return null; }
   }
 
   function providePermissionHelp(err){
-    const msg = (err && err.name) ? err.name : String(err);
+    const msg = err && err.name ? err.name : String(err);
     setErr('Dostęp do kamery odrzucony lub zablokowany: ' + msg + '\nZobacz instrukcje poniżej.');
     showPermissionInstructions();
   }
@@ -266,13 +333,15 @@
     inAppBox.style.display = 'block';
     inAppBox.innerHTML = `<strong>Jak odblokować kamerę?</strong>
       <ol>
-        <li>Jeśli jesteś w aplikacji (Facebook/Instagram) — wybierz "Otwórz w przeglądarce" (przycisk powyżej) i spróbuj ponownie.</li>
-        <li>iOS: Ustawienia → Safari (lub: Ustawienia → [nazwa przeglądarki]) → Kamera → ustaw na "Zezwól".</li>
+        <li>Jeśli jesteś w aplikacji (Facebook/Instagram) — wybierz "Otwórz w przeglądarce" i spróbuj ponownie.</li>
+        <li>iOS: Ustawienia → Safari (lub inna przeglądarka) → Kamera → Zezwól.</li>
         <li>Android: Ustawienia → Aplikacje → Chrome (lub inna) → Uprawnienia → Kamera → Zezwól.</li>
-        <li>Możesz też usunąć blokadę dla tej strony w ustawieniach strony (Site settings → Camera).</li>
+        <li>Możesz też usunąć blokadę dla tej strony w ustawieniach witryny (Site settings → Camera).</li>
       </ol>
-      Po zmienieniu ustawień wróć na tę stronę i naciśnij "Sprawdź uprawnienia".`;
+      Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`;
   }
+
+  openInBrowserBtn.addEventListener('click', ()=>{ window.open(location.href, '_blank', 'noopener'); });
 
   window.addEventListener('pagehide', ()=>{ if(activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
 
