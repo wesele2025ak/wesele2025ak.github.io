@@ -5,33 +5,34 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Prześlij zdjęcie — live</title>
 <style>
-  :root { color-scheme: dark; }
-  body{ font-family: system-ui, sans-serif; margin:0; padding:16px; background:#0b0c10; color:#e8e8e8 }
-  .card{ max-width:720px; margin:0 auto; background:#121317; border:1px solid #23242a; border-radius:12px; padding:12px; box-shadow:0 6px 18px rgba(0,0,0,.35) }
-  h1{ font-size:1.2rem; margin:0 0 8px }
-  .muted{ color:#a7a7a7; font-size:.95rem }
-  .status{ margin-top:10px; padding:10px; border-radius:8px; background:#0e1116; border:1px solid #1f2530; white-space:pre-wrap; min-height:3em }
-  .ok{ border-color:#2a5 } .err{ border-color:#d55 }
-  .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px }
-  button{ font:inherit; background:#1f88ff; color:#fff; border:none; padding:10px 12px; border-radius:10px; cursor:pointer }
-  button[disabled]{ opacity:.6; cursor:not-allowed }
-  .pill{ display:inline-block; border:1px dashed #2b2e36; padding:6px 10px; border-radius:999px; font-size:.85rem; color:#bbc }
-  .videoWrap{ margin-top:12px; position:relative; border-radius:10px; overflow:hidden; background:#000; min-height:200px; display:none }
-  video{ width:100%; height:auto; display:block; background:#000; transform-origin:center center; }
-  .overlayBtn{ position:absolute; right:12px; bottom:12px; z-index:5 }
-  .hint{ margin-top:8px; font-size:.9rem; color:#cfcfcf }
-  .inApp{ margin-top:8px; padding:8px; background:#16181b; border:1px solid #2a2d33; border-radius:8px }
-  input[type=file]{ position:absolute; left:-9999px }
-  .flash { position:fixed; left:0; top:0; right:0; bottom:0; pointer-events:none; background:rgba(255,255,255,0); opacity:0; transition:opacity .18s ease; mix-blend-mode:screen; z-index:9999; }
-  .flash.do { opacity:0.85; background: white; transition:opacity .18s ease; }
-  .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:18px; padding:10px 16px; border-radius:10px; background:rgba(20,20,20,0.9); color:#fff; box-shadow:0 6px 18px rgba(0,0,0,.5); font-weight:600; z-index:9999; display:none; }
-  .toast.show { display:block; animation:toast-in .2s ease; }
-  @keyframes toast-in { from { transform:translateX(-50%) translateY(8px); opacity:0 } to { transform:translateX(-50%) translateY(0); opacity:1 } }
-  .openCameraFallback { display:none; margin-top:8px }
-  .progressWrap{ margin-top:12px; height:12px; background:#15161a; border-radius:999px; overflow:hidden; border:1px solid #222 }
-  .progressBar{ height:100%; width:0%; background:#1f88ff; transition:width .15s linear }
-  .progressText{ margin-left:8px; font-size:.85rem; color:#cfcfcf }
-  .progressRow{ display:flex; align-items:center; gap:8px; margin-top:8px }
+  :root{color-scheme:dark}
+  body{font-family:system-ui, sans-serif;margin:0;padding:16px;background:#0b0c10;color:#e8e8e8}
+  .card{max-width:720px;margin:0 auto;background:#121317;border:1px solid #23242a;border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  h1{font-size:1.2rem;margin:0 0 8px}
+  .muted{color:#a7a7a7;font-size:.95rem}
+  .status{margin-top:10px;padding:10px;border-radius:8px;background:#0e1116;border:1px solid #1f2530;white-space:pre-wrap;min-height:3em}
+  .ok{border-color:#2a5}.err{border-color:#d55}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  button{font:inherit;background:#1f88ff;color:#fff;border:none;padding:10px 12px;border-radius:10px;cursor:pointer}
+  button[disabled]{opacity:.6;cursor:not-allowed}
+  .pill{display:inline-block;border:1px dashed #2b2e36;padding:6px 10px;border-radius:999px;font-size:.85rem;color:#bbc}
+  .videoWrap{margin-top:12px;position:relative;border-radius:10px;overflow:hidden;background:#000;min-height:200px;display:none}
+  video{width:100%;height:auto;display:block;background:#000;transform-origin:center center}
+  .overlayBtn{position:absolute;right:12px;bottom:12px;z-index:5}
+  .hint{margin-top:8px;font-size:.9rem;color:#cfcfcf}
+  .inApp{margin-top:8px;padding:8px;background:#16181b;border:1px solid #2a2d33;border-radius:8px}
+  input[type=file]{position:absolute;left:-9999px}
+  .flash{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;background:rgba(255,255,255,0);opacity:0;transition:opacity .18s ease;mix-blend-mode:screen;z-index:9999}
+  .flash.do{opacity:0.85;background:white;transition:opacity .18s ease}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;padding:10px 16px;border-radius:10px;background:rgba(20,20,20,0.9);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.5);font-weight:600;z-index:9999;display:none}
+  .toast.show{display:block;animation:toast-in .2s ease}
+  @keyframes toast-in{from{transform:translateX(-50%) translateY(8px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+  .openCameraFallback{display:none;margin-top:8px}
+  .progressWrap{margin-top:12px;height:12px;background:#15161a;border-radius:999px;overflow:hidden;border:1px solid #222;min-width:160px}
+  .progressBar{height:100%;width:0%;background:#1f88ff;transition:width .12s linear}
+  .progressText{margin-left:8px;font-size:.85rem;color:#cfcfcf;min-width:36px;text-align:right}
+  .progressRow{display:flex;align-items:center;gap:8px;margin-top:8px;visibility:hidden;opacity:0;transition:opacity .15s linear}
+  .progressRow.visible{visibility:visible;opacity:1}
 </style>
 </head>
 <body>
@@ -55,7 +56,7 @@
     <div class="hint" id="hintBox">Naciśnij "Uruchom kamerę", następnie przycisk "Zrób zdjęcie". Po zrobieniu — zdjęcie wysyłane jest natychmiast.</div>
     <div class="inApp" id="inAppBox" style="display:none"></div>
     <button class="openCameraFallback" id="openCameraFallback">Uruchom kamerę</button>
-    <div class="progressRow" id="progressRow" style="display:none">
+    <div class="progressRow" id="progressRow">
       <div class="progressWrap"><div class="progressBar" id="progressBar"></div></div>
       <div class="progressText" id="progressText">0%</div>
     </div>
@@ -218,12 +219,54 @@
     }
     return dst;
   }
+
+  let indeterminateTimer = null;
+  function startIndeterminateProgress(){
+    let pct = 6;
+    progressBar.style.width = pct + '%';
+    progressText.textContent = pct + '%';
+    indeterminateTimer = setInterval(()=>{
+      pct = Math.min(90, pct + Math.max(1, Math.round((90 - pct) * 0.06)));
+      progressBar.style.width = pct + '%';
+      progressText.textContent = pct + '%';
+    }, 250);
+  }
+  function stopIndeterminateProgress(){
+    if(indeterminateTimer){ clearInterval(indeterminateTimer); indeterminateTimer = null; }
+  }
+
+  let audioCtx = null;
+  function playShutter(){
+    try{
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === 'suspended'){ audioCtx.resume().catch(()=>{}); }
+      const sr = audioCtx.sampleRate;
+      const len = Math.floor(sr * 0.08);
+      const buf = audioCtx.createBuffer(1, len, sr);
+      const data = buf.getChannelData(0);
+      for(let i=0;i<len;i++){
+        const t = i/len;
+        const env = Math.pow(1 - t, 3);
+        data[i] = (Math.random()*2-1) * env * 0.6;
+      }
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      const g = audioCtx.createGain();
+      g.gain.value = 1;
+      src.connect(g);
+      g.connect(audioCtx.destination);
+      src.start();
+      src.stop(audioCtx.currentTime + 0.09);
+    }catch(e){}
+  }
+
   async function captureAndUpload(){
     if(uploading) return;
     if(!camVid || camVid.readyState < 2){ setErr('Kamera niegotowa.'); return; }
     uploading = true;
     captureBtn.disabled = true;
     doFlash();
+    playShutter();
     const rawW = camVid.videoWidth || 1280;
     const rawH = camVid.videoHeight || 720;
     const tmp = document.createElement('canvas');
@@ -246,16 +289,19 @@
       finally {
         uploading = false;
         captureBtn.disabled = false;
-        progressRow.style.display = 'none';
+        setTimeout(()=>{ progressRow.classList.remove('visible'); }, 300);
         progressBar.style.width = '0%';
         progressText.textContent = '0%';
+        stopIndeterminateProgress();
       }
     }, 'image/jpeg', 0.92);
   }
+
   function uploadFileWithProgress(file){
-    progressRow.style.display = 'flex';
-    progressBar.style.width = '0%';
+    progressRow.classList.add('visible');
+    progressBar.style.width = '4%';
     progressText.textContent = '0%';
+    stopIndeterminateProgress();
     return new Promise((res, rej)=>{
       const fd = new FormData();
       fd.append('file', file, file.name || 'photo.jpg');
@@ -263,43 +309,52 @@
       fd.append('uuid', uuid);
       fd.append('t', t);
       const xhr = new XMLHttpRequest();
+      let haveLength = false;
       xhr.open('POST', WORKER_URL, true);
       xhr.timeout = 30000;
       xhr.upload.onprogress = (e)=>{
         if(e.lengthComputable){
+          haveLength = true;
           const pct = Math.round((e.loaded / e.total) * 100);
           progressBar.style.width = pct + '%';
           progressText.textContent = pct + '%';
         } else {
-          progressBar.style.width = '80%';
-          progressText.textContent = '...';
+          if(!indeterminateTimer) startIndeterminateProgress();
         }
       };
       xhr.onload = ()=>{
+        stopIndeterminateProgress();
         let json = {};
         try{ json = JSON.parse(xhr.responseText || '{}'); }catch(e){}
-        if(xhr.status>=200 && xhr.status<300){ res(json); }
-        else{ setErr('Błąd uploadu: '+(json.error || xhr.status)); rej(json); }
+        if(xhr.status>=200 && xhr.status<300){
+          progressBar.style.width = '100%';
+          progressText.textContent = '100%';
+          res(json);
+        } else { setErr('Błąd uploadu: '+(json.error || xhr.status)); rej(json); }
       };
-      xhr.onerror = ()=>{ setErr('Błąd sieci podczas wysyłania'); rej(new Error('network')); };
-      xhr.ontimeout = ()=>{ setErr('Timeout podczas uploadu'); rej(new Error('timeout')); };
-      try{ xhr.send(fd); } catch(e){ setErr('Błąd wysyłania: '+e.message); rej(e); }
+      xhr.onerror = ()=>{ stopIndeterminateProgress(); setErr('Błąd sieci podczas wysyłania'); rej(new Error('network')); };
+      xhr.ontimeout = ()=>{ stopIndeterminateProgress(); setErr('Timeout podczas uploadu'); rej(new Error('timeout')); };
+      try{ xhr.send(fd); } catch(e){ stopIndeterminateProgress(); setErr('Błąd wysyłania: '+e.message); rej(e); }
     });
   }
+
   fileInput.addEventListener('change', async ()=>{
     const f = fileInput.files && fileInput.files[0];
     if(!f){ setErr('Brak pliku'); return; }
     setOk('Wybrano plik — wysyłam...');
-    try{ await uploadFileWithProgress(f); setOk('Wysłano ✅'); showToast('Wysłano'); } catch(e){} finally { progressRow.style.display = 'none'; progressBar.style.width = '0%'; progressText.textContent = '0%'; }
+    try{ await uploadFileWithProgress(f); setOk('Wysłano ✅'); showToast('Wysłano'); } catch(e){} finally { setTimeout(()=>{ progressRow.classList.remove('visible'); },300); progressBar.style.width='0%'; progressText.textContent='0%'; stopIndeterminateProgress(); }
   });
+
   openBtn.addEventListener('click', async ()=>{ openCameraFallback.style.display='none'; await startCamera(); });
   captureBtn.addEventListener('click', captureAndUpload);
   openCameraFallback.addEventListener('click', async ()=>{ await startCamera(); openCameraFallback.style.display='none'; });
+
   switchBtn.addEventListener('click', async ()=>{
     currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
     setSwitchLabel();
     try{ await startCamera(); }catch(e){}
   });
+
   retryPermBtn.addEventListener('click', async ()=>{
     setOk('Sprawdzam stan uprawnień...');
     const state = await checkPermissionState();
@@ -308,15 +363,18 @@
     if(state === 'denied'){ setErr('Uprawnzenie zablokowane. Zobacz instrukcje w polu poniżej.'); showPermissionInstructions(); return; }
     setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub otwórz w innej przeglądarce.');
   });
+
   async function checkPermissionState(){
     if(!navigator.permissions || !navigator.permissions.query) return null;
     try { const p = await navigator.permissions.query({ name: 'camera' }); return p.state; } catch(e){ return null; }
   }
+
   function providePermissionHelp(err){
     const msg = err && err.name ? err.name : String(err);
     setErr('Dostęp do kamery odrzucony lub zablokowany: ' + msg + '\nZobacz instrukcje poniżej.');
     showPermissionInstructions();
   }
+
   function showPermissionInstructions(){
     inAppBox.style.display = 'block';
     inAppBox.innerHTML = `<strong>Jak odblokować kamerę?</strong>
@@ -328,8 +386,30 @@
       </ol>
       Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`;
   }
+
   openInBrowserBtn.addEventListener('click', ()=>{ window.open(location.href, '_blank', 'noopener'); });
   window.addEventListener('pagehide', ()=>{ if(activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
+
+  async function startCamera(){
+    openCameraFallback.style.display = 'none';
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ setErr('getUserMedia niedostępny (webview lub stara przeglądarka). Otwieram selektor pliku.'); fileInput.click(); return; }
+    setOk('Proszę o dostęp do kamery...');
+    try {
+      const stream = await tryGetStream(currentFacing);
+      if(!stream){ providePermissionHelp(new Error('Nie można uzyskać strumienia dla kamery')); return; }
+      stopCamera();
+      activeStream = stream;
+      camVid.srcObject = stream;
+      camVid.playsInline = true;
+      videoWrap.style.display = 'block';
+      await camVid.play().catch(()=>{});
+      setOk('Kamera uruchomiona — naciśnij "Zrób zdjęcie".');
+      hintBox.textContent = 'Naciśnij "Zrób zdjęcie". Po zrobieniu zdjęcie zostanie wysłane natychmiast.';
+      startFreezeWatcher();
+    } catch(err){
+      providePermissionHelp(err);
+    }
+  }
 })();
 </script>
 </body>
