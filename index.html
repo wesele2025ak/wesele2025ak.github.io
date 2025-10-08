@@ -23,17 +23,9 @@
   .danger{ color:#ffb3b3 }
   .inApp{ margin-top:8px; padding:8px; background:#16181b; border:1px solid #2a2d33; border-radius:8px }
   input[type=file]{ position:absolute; left:-9999px }
-  .flash {
-    position:fixed; left:0; top:0; right:0; bottom:0; pointer-events:none;
-    background:rgba(255,255,255,0); opacity:0; transition:opacity .18s ease;
-    mix-blend-mode:screen; z-index:9999;
-  }
+  .flash { position:fixed; left:0; top:0; right:0; bottom:0; pointer-events:none; background:rgba(255,255,255,0); opacity:0; transition:opacity .18s ease; mix-blend-mode:screen; z-index:9999; }
   .flash.do { opacity:0.85; background: white; transition:opacity .18s ease; }
-  .toast {
-    position:fixed; left:50%; transform:translateX(-50%); bottom:18px;
-    padding:10px 16px; border-radius:10px; background:rgba(20,20,20,0.9); color:#fff;
-    box-shadow:0 6px 18px rgba(0,0,0,.5); font-weight:600; z-index:9999; display:none;
-  }
+  .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:18px; padding:10px 16px; border-radius:10px; background:rgba(20,20,20,0.9); color:#fff; box-shadow:0 6px 18px rgba(0,0,0,.5); font-weight:600; z-index:9999; display:none; }
   .toast.show { display:block; animation:toast-in .2s ease; }
   @keyframes toast-in { from { transform:translateX(-50%) translateY(8px); opacity:0 } to { transform:translateX(-50%) translateY(0); opacity:1 } }
   .openCameraFallback { display:none; margin-top:8px }
@@ -126,7 +118,6 @@
     lastVideoTime = camVid.currentTime || 0;
     if(freezeTimer) clearInterval(freezeTimer);
     freezeTimer = setInterval(()=>{
-      if(!camVid || camVid.readyState < 2 || camVid.paused || camVid.ended){}
       const now = camVid.currentTime || 0;
       if(now === lastVideoTime){
         if(typeof lastVideoTime === 'number'){
@@ -178,11 +169,19 @@
     try{ camVid.srcObject = null; } catch(e){}
     videoWrap.style.display = 'none';
   }
-  function getOrientationAngle(){
+  function getScreenAngle(){
     try {
       if (screen && screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
     } catch(e){}
     if(typeof window.orientation === 'number') return window.orientation;
+    return 0;
+  }
+  function normalizeAngle(a){
+    const ang = ((a % 360) + 360) % 360;
+    if(ang === 0) return 0;
+    if(ang === 90) return 90;
+    if(ang === 180) return 180;
+    if(ang === 270) return 270;
     return 0;
   }
   function captureAndUpload(){
@@ -193,20 +192,31 @@
     doFlash();
     const rawW = camVid.videoWidth || 1280;
     const rawH = camVid.videoHeight || 720;
-    const angle = getOrientationAngle() || 0;
-    let cw = rawW, ch = rawH;
-    const a = ((angle % 360) + 360) % 360;
-    if(a === 90 || a === 270){ cw = rawH; ch = rawW; } else { cw = rawW; ch = rawH; }
-    const rotate = a * Math.PI / 180;
+    const angle = normalizeAngle(getScreenAngle());
     const canvas = document.createElement('canvas');
-    canvas.width = cw;
-    canvas.height = ch;
     const ctx = canvas.getContext('2d');
-    ctx.save();
-    ctx.translate(cw/2, ch/2);
-    ctx.rotate(rotate);
-    ctx.drawImage(camVid, -rawW/2, -rawH/2, rawW, rawH);
-    ctx.restore();
+    if(angle === 0){
+      canvas.width = rawW; canvas.height = rawH;
+      ctx.drawImage(camVid, 0, 0, rawW, rawH);
+    } else if(angle === 90){
+      canvas.width = rawH; canvas.height = rawW;
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI/2);
+      ctx.drawImage(camVid, 0, 0, rawW, rawH);
+    } else if(angle === 180){
+      canvas.width = rawW; canvas.height = rawH;
+      ctx.translate(canvas.width, canvas.height);
+      ctx.rotate(Math.PI);
+      ctx.drawImage(camVid, 0, 0, rawW, rawH);
+    } else if(angle === 270){
+      canvas.width = rawH; canvas.height = rawW;
+      ctx.translate(0, canvas.height);
+      ctx.rotate(-Math.PI/2);
+      ctx.drawImage(camVid, 0, 0, rawW, rawH);
+    } else {
+      canvas.width = rawW; canvas.height = rawH;
+      ctx.drawImage(camVid, 0, 0, rawW, rawH);
+    }
     canvas.toBlob(async (blob) => {
       if(!blob){ setErr('Nie udało się przygotować zdjęcia'); uploading=false; captureBtn.disabled=false; return; }
       const file = new File([blob], 'photo.jpg', { type:'image/jpeg' });
