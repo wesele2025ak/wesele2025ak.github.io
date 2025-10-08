@@ -7,32 +7,41 @@
 <style>
   :root{color-scheme:dark}
   body{font-family:system-ui, sans-serif;margin:0;padding:16px;background:#0b0c10;color:#e8e8e8}
-  .card{max-width:760px;margin:0 auto;background:#121317;border:1px solid #23242a;border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
-  h1{font-size:1.2rem;margin:0 0 8px}
+  .card{max-width:900px;margin:0 auto;background:#121317;border:1px solid #23242a;border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  h1{font-size:1.15rem;margin:0 0 8px}
   .muted{color:#a7a7a7;font-size:.95rem}
   .status{margin-top:10px;padding:10px;border-radius:8px;background:#0e1116;border:1px solid #1f2530;white-space:pre-wrap;min-height:3em}
   .ok{border-color:#2a5}.err{border-color:#d55}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
-  button{font:inherit;background:#1f88ff;color:#fff;border:none;padding:10px 12px;border-radius:10px;cursor:pointer}
-  button[disabled]{opacity:.6;cursor:not-allowed}
   .pill{display:inline-block;border:1px dashed #2b2e36;padding:6px 10px;border-radius:999px;font-size:.85rem;color:#bbc}
-  .videoWrap{margin-top:12px;position:relative;border-radius:10px;overflow:hidden;background:#000;min-height:200px;display:none}
+  .videoWrap{margin-top:12px;position:relative;border-radius:12px;overflow:hidden;background:#000;min-height:260px;display:none}
   video{width:100%;height:auto;display:block;background:#000;transform-origin:center center}
-  .overlayBtn{position:absolute;right:12px;bottom:12px;z-index:5}
+  .overlays{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none}
+  .control{position:absolute;pointer-events:auto;background:rgba(20,22,26,.55);border:1px solid rgba(255,255,255,.06);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;border-radius:999px;padding:8px;cursor:pointer;color:#fff}
+  .control svg{width:20px;height:20px;display:block}
+  .control.small{width:44px;height:44px}
+  .control.big{width:72px;height:72px;background:linear-gradient(180deg,#2a86ff,#1a6fe0);box-shadow:0 6px 18px rgba(25,110,220,.25)}
+  .control.topRight{top:12px;right:12px}
+  .control.topLeft{top:12px;left:12px}
+  .control.bottomLeft{left:20px;bottom:16px}
+  .control.bottomCenter{left:50%;transform:translateX(-50%);bottom:18px}
+  .control.bottomRight{right:20px;bottom:16px}
   .hint{margin-top:8px;font-size:.9rem;color:#cfcfcf}
   .inApp{margin-top:8px;padding:8px;background:#16181b;border:1px solid #2a2d33;border-radius:8px}
   input[type=file]{position:absolute;left:-9999px}
   .flash{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;background:rgba(255,255,255,0);opacity:0;transition:opacity .18s ease;mix-blend-mode:screen;z-index:9999}
   .flash.do{opacity:0.85;background:white;transition:opacity .18s ease}
-  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;padding:10px 16px;border-radius:10px;background:rgba(20,20,20,0.9);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.5);font-weight:600;z-index:9999;display:none}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;padding:10px 16px;border-radius:10px;background:rgba(20,20,20,0.92);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.5);font-weight:600;z-index:9999;display:none}
   .toast.show{display:block;animation:toast-in .22s ease}
   @keyframes toast-in{from{transform:translateX(-50%) translateY(8px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
-  .openCameraFallback{display:none;margin-top:8px}
   .progressWrap{margin-top:12px;height:12px;background:#15161a;border-radius:999px;overflow:hidden;border:1px solid #222;min-width:180px}
   .progressBar{height:100%;width:0%;background:#1f88ff;transition:width .12s linear}
   .progressText{margin-left:8px;font-size:.85rem;color:#cfcfcf;min-width:36px;text-align:right}
   .progressRow{display:flex;align-items:center;gap:8px;margin-top:8px;visibility:hidden;opacity:0;transition:opacity .15s linear}
   .progressRow.visible{visibility:visible;opacity:1}
+  .metaRow{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
+  .controlsBar{display:flex;gap:8px;align-items:center}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 </style>
 </head>
 <body>
@@ -41,27 +50,41 @@
     <div class="muted" id="eventInfo">Sprawdzam token...</div>
     <div class="status" id="statusBox">Gotowy.</div>
     <div style="height:10px"></div>
-    <span class="pill" id="uuidInfo">UUID: …</span>
+    <div class="metaRow">
+      <span class="pill" id="uuidInfo">UUID: …</span>
+      <div class="controlsBar">
+        <div id="openBtnWrap"><button id="openBtn">Uruchom kamerę</button></div>
+        <button id="retryPermBtn">Sprawdź uprawnienia</button>
+        <button id="openInBrowserBtn" style="display:none">Otwórz w przeglądarce</button>
+        <input id="file" type="file" accept="image/*" capture="environment" />
+      </div>
+    </div>
     <div class="videoWrap" id="videoWrap" aria-hidden="true">
       <video id="camVid" autoplay playsinline muted></video>
-      <button class="overlayBtn" id="captureBtn" title="Zrób zdjęcie">Zrób zdjęcie</button>
+      <div class="overlays" id="overlays">
+        <button class="control topRight small" id="fsBtn" aria-label="Pełny ekran" title="Pełny ekran">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg>
+        </button>
+        <button class="control topLeft small" id="switchIconBtn" aria-label="Przełącz kamerę" title="Przełącz kamerę">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7l-6 6"/><path d="M3 17l6-6"/><path d="M21 7a9 9 0 0 1-9 9"/><path d="M3 17a9 9 0 0 0 9-9"/></svg>
+        </button>
+        <button class="control bottomLeft small" id="fileIconBtn" aria-label="Wybierz plik" title="Wybierz plik">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5"/><path d="M12 5v12"/></svg>
+        </button>
+        <button class="control bottomCenter big" id="captureBtn" aria-label="Zrób zdjęcie" title="Zrób zdjęcie">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h6l2 3h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4" fill="rgba(255,255,255,0.08)"/></svg>
+        </button>
+        <button class="control bottomRight small" id="switchBtn" aria-label="Przełącz kamerę" title="Przełącz kamerę">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7l-6 6"/><path d="M3 17l6-6"/><path d="M21 7a9 9 0 0 1-9 9"/><path d="M3 17a9 9 0 0 0 9-9"/></svg>
+        </button>
+      </div>
     </div>
-    <div class="row">
-      <button id="openBtn" type="button">Uruchom kamerę / wybierz plik</button>
-      <button id="switchBtn" type="button">Przełącz kamerę</button>
-      <button id="retryPermBtn" type="button">Sprawdź uprawnienia</button>
-      <button id="openInBrowserBtn" type="button" style="display:none">Otwórz w przeglądarce</button>
-      <input id="file" type="file" accept="image/*" capture="environment" />
-    </div>
-    <div class="hint" id="hintBox">Naciśnij "Uruchom kamerę", następnie przycisk "Zrób zdjęcie". Po zrobieniu — zdjęcie wysyłane jest natychmiast.</div>
+    <div class="hint" id="hintBox">Naciśnij "Uruchom kamerę", następnie przycisk na środku, aby zrobić zdjęcie. Możesz przełączać kamery i wejść w pełny ekran.</div>
     <div class="inApp" id="inAppBox" style="display:none"></div>
-    <button class="openCameraFallback" id="openCameraFallback">Uruchom kamerę</button>
     <div class="progressRow" id="progressRow">
       <div class="progressWrap"><div class="progressBar" id="progressBar"></div></div>
       <div class="progressText" id="progressText">0%</div>
     </div>
-    <div style="height:10px"></div>
-    <div class="muted">Link jest wspólny dla wydarzenia. Upload następuje od razu po zrobieniu zdjęcia.</div>
   </div>
   <div class="flash" id="flash"></div>
   <div class="toast" id="toast">Wysłano</div>
@@ -77,6 +100,8 @@
   const uuidInfo = document.getElementById('uuidInfo');
   const openBtn = document.getElementById('openBtn');
   const switchBtn = document.getElementById('switchBtn');
+  const switchIconBtn = document.getElementById('switchIconBtn');
+  const fileIconBtn = document.getElementById('fileIconBtn');
   const retryPermBtn = document.getElementById('retryPermBtn');
   const openInBrowserBtn = document.getElementById('openInBrowserBtn');
   const fileInput = document.getElementById('file');
@@ -91,6 +116,7 @@
   const progressRow = document.getElementById('progressRow');
   const progressBar = document.getElementById('progressBar');
   const progressText = document.getElementById('progressText');
+  const fsBtn = document.getElementById('fsBtn');
   function setOk(m){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = m; }
   function setErr(m){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = m; }
   if(!eventToken || !t){ setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.'); } else { eventInfo.textContent = `Wydarzenie: ${eventToken}`; }
@@ -122,11 +148,10 @@
   let currentFacing = 'environment';
   let switching = false;
   const discovered = { user: null, environment: null };
-  function setSwitchLabel(){ switchBtn.textContent = currentFacing === 'environment' ? 'Przełącz na przednią' : 'Przełącz na tylną'; }
-  setSwitchLabel();
+  function setSwitchLabel(){}
   function doFlash(){ flashEl.classList.add('do'); setTimeout(()=> flashEl.classList.remove('do'), 180); }
   function showToast(m){ toast.textContent = m; toast.classList.add('show'); setTimeout(()=> toast.classList.remove('show'), 2200); }
-  async function checkPermissionState(){ if(!navigator.permissions || !navigator.permissions.query) return null; try{ const p = await navigator.permissions.query({ name: 'camera' }); p.onchange = ()=>{}; return p.state; } catch(e){ return null; } }
+  async function checkPermissionState(){ if(!navigator.permissions || !navigator.permissions.query) return null; try{ const p = await navigator.permissions.query({ name: 'camera' }); return p.state; } catch(e){ return null; } }
   let freezeTimer = null;
   let lastVideoTime = 0;
   function startFreezeWatcher(){
@@ -144,7 +169,6 @@
   function handleCameraFreeze(){
     stopCamera();
     setErr('Podgląd kamery uległ zacięciu — podgląd wyłączony. Użyj przycisku aby ponownie uruchomić kamerę.');
-    openCameraFallback.style.display = 'inline-block';
     videoWrap.style.display = 'none';
   }
   async function getDeviceIdForFacing(facing){
@@ -171,7 +195,7 @@
     return null;
   }
   async function startCamera(){
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ setErr('getUserMedia niedostępny (webview lub stara przeglądarka). Otwieram selektor pliku.'); fileInput.click(); return; }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ setErr('getUserMedia niedostępny (webview lub stara przeglądarka).'); fileInput.click(); return; }
     setOk('Proszę o dostęp do kamery...');
     try{
       stopCamera();
@@ -182,8 +206,8 @@
       camVid.playsInline = true;
       videoWrap.style.display = 'block';
       await camVid.play().catch(()=>{});
-      setOk('Kamera uruchomiona — naciśnij "Zrób zdjęcie".');
-      hintBox.textContent = 'Naciśnij "Zrób zdjęcie". Po zrobieniu zdjęcie zostanie wysłane natychmiast.';
+      setOk('Kamera uruchomiona — naciśnij centralny przycisk, aby zrobić zdjęcie.');
+      hintBox.textContent = 'Naciśnij środkowy przycisk, aby zrobić zdjęcie. Możesz przełączać kamery i wejść w pełny ekran.';
       startFreezeWatcher();
       try{
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -230,19 +254,39 @@
   let audioCtx = null;
   function playShutter(){
     try{
-      if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if(audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
-      const sr = audioCtx.sampleRate;
-      const len = Math.floor(sr * 0.08);
-      const buf = audioCtx.createBuffer(1,len,sr);
-      const data = buf.getChannelData(0);
-      for(let i=0;i<len;i++){ const t=i/len; const env=Math.pow(1 - t,3); data[i] = (Math.random()*2-1) * env * 0.6; }
-      const src = audioCtx.createBufferSource();
-      src.buffer = buf;
-      const g = audioCtx.createGain();
-      g.gain.value = 1;
-      src.connect(g); g.connect(audioCtx.destination);
-      src.start(); src.stop(audioCtx.currentTime + 0.09);
+      const now = audioCtx.currentTime;
+      const master = audioCtx.createGain();
+      master.gain.value = 0.9;
+      master.connect(audioCtx.destination);
+      const osc1 = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      const g1 = audioCtx.createGain();
+      const g2 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc2.type = 'triangle';
+      osc1.frequency.setValueAtTime(1200, now);
+      osc2.frequency.setValueAtTime(800, now);
+      g1.gain.setValueAtTime(0.0001, now);
+      g2.gain.setValueAtTime(0.0001, now);
+      g1.gain.exponentialRampToValueAtTime(0.28, now + 0.005);
+      g2.gain.exponentialRampToValueAtTime(0.18, now + 0.006);
+      g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      osc1.connect(g1); osc2.connect(g2);
+      g1.connect(master); g2.connect(master);
+      const noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.05, audioCtx.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.pow(1 - i/data.length, 2) * 0.5;
+      const nb = audioCtx.createBufferSource();
+      nb.buffer = noiseBuf;
+      const ng = audioCtx.createGain();
+      ng.gain.value = 0.8;
+      nb.connect(ng); ng.connect(master);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      osc1.start(now); osc2.start(now); nb.start(now);
+      osc1.stop(now + 0.12); osc2.stop(now + 0.12); nb.stop(now + 0.09);
     }catch(e){}
   }
   async function captureAndUpload(){
@@ -292,11 +336,9 @@
       fd.append('t', t);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', WORKER_URL, true);
-      xhr.timeout = 30000;
-      let haveLength = false;
+      xhr.timeout = 40000;
       xhr.upload.onprogress = (e)=>{
         if(e.lengthComputable){
-          haveLength = true;
           const pct = Math.round((e.loaded / e.total) * 100);
           progressBar.style.width = pct + '%';
           progressText.textContent = pct + '%';
@@ -322,24 +364,21 @@
     setOk('Wybrano plik — wysyłam...');
     try{ await uploadFileWithProgress(f); setOk('Wysłano ✅'); showToast('Wysłano'); }catch(e){}finally{ setTimeout(()=>{ progressRow.classList.remove('visible'); },300); progressBar.style.width='0%'; progressText.textContent='0%'; stopIndeterminateProgress(); }
   });
-  openBtn.addEventListener('click', async ()=>{ openCameraFallback.style.display='none'; await startCamera(); });
+  document.getElementById('fileIconBtn').addEventListener('click', ()=> fileInput.click());
+  openBtn.addEventListener('click', async ()=>{ await startCamera(); });
   captureBtn.addEventListener('click', captureAndUpload);
-  openCameraFallback.addEventListener('click', async ()=>{ await startCamera(); openCameraFallback.style.display='none'; });
   switchBtn.addEventListener('click', async ()=>{
     if(switching) return;
     switching = true;
-    try{
-      currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
-      setSwitchLabel();
-      await startCamera();
-    }finally{ switching = false; }
+    try{ currentFacing = currentFacing === 'environment' ? 'user' : 'environment'; await startCamera(); }finally{ switching = false; }
   });
+  switchIconBtn.addEventListener('click', ()=> switchBtn.click());
   retryPermBtn.addEventListener('click', async ()=>{
     setOk('Sprawdzam stan uprawnień...');
     const state = await checkPermissionState();
     if(state === 'granted'){ setOk('Uprawnienia przyznane — uruchamiam kamerę...'); await startCamera(); return; }
     if(state === 'prompt' || state === null){ setOk('Spróbuję ponownie poprosić o dostęp...'); await startCamera(); return; }
-    if(state === 'denied'){ setErr('Uprawnzenie zablokowane. Zobacz instrukcje w polu poniżej.'); showPermissionInstructions(); return; }
+    if(state === 'denied'){ setErr('Uprawnienie zablokowane. Zobacz instrukcje w polu poniżej.'); showPermissionInstructions(); return; }
     setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub otwórz w innej przeglądarce.');
   });
   function providePermissionHelp(err){ const msg = err && err.name ? err.name : String(err); setErr('Dostęp do kamery odrzucony lub zablokowany: ' + msg + '\nZobacz instrukcje poniżej.'); showPermissionInstructions(); }
@@ -353,6 +392,15 @@
       Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`; }
   openInBrowserBtn.addEventListener('click', ()=>{ window.open(location.href, '_blank', 'noopener'); });
   window.addEventListener('pagehide', ()=>{ if(activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
+  fsBtn.addEventListener('click', async ()=>{
+    try{
+      if(!document.fullscreenElement) await videoWrap.requestFullscreen();
+      else await document.exitFullscreen();
+    }catch(e){}
+  });
+  document.addEventListener('fullscreenchange', ()=>{
+    if(document.fullscreenElement) fsBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg>'; else fsBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg>';
+  });
 })();
 </script>
 </body>
