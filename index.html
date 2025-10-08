@@ -72,10 +72,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg>
         </button>
         <button class="control bottomCenter big" id="captureBtn" aria-label="Zrób zdjęcie" title="Zrób zdjęcie">
-          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="13" rx="2"/><circle cx="12" cy="11.5" r="3.2" fill="rgba(255,255,255,0.08)"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="14" rx="2"/><circle cx="12" cy="11" r="3.4" fill="rgba(255,255,255,0.08)"/></svg>
         </button>
         <button class="control bottomRight small" id="switchBtn" aria-label="Przełącz kamerę" title="Przełącz kamerę">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v6"/><path d="M21 8l-4 4"/><path d="M3 16v-6"/><path d="M3 16l4-4"/><path d="M7 8a7 7 0 0 1 10 0"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h4"/><path d="M3 7v4"/><path d="M21 17h-4"/><path d="M21 17v-4"/><path d="M7 7a6 6 0 0 1 10 6"/></svg>
         </button>
       </div>
     </div>
@@ -143,6 +143,7 @@
   const discovered = { user: null, environment: null };
   let freezeTimer = null;
   let lastVideoTime = 0;
+  function doFlash(){ flashEl.classList.add('do'); setTimeout(()=> flashEl.classList.remove('do'), 180); }
   function startFreezeWatcher(){
     lastVideoTime = camVid.currentTime || 0;
     if(freezeTimer) clearInterval(freezeTimer);
@@ -248,7 +249,6 @@
       if(audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
       const now = audioCtx.currentTime;
       const master = audioCtx.createGain(); master.gain.value = 0.45; master.connect(audioCtx.destination);
-      // short soft click (noise burst)
       const noiseLen = Math.floor(audioCtx.sampleRate * 0.05);
       const noiseBuf = audioCtx.createBuffer(1, noiseLen, audioCtx.sampleRate);
       const data = noiseBuf.getChannelData(0);
@@ -256,7 +256,6 @@
       const nb = audioCtx.createBufferSource(); nb.buffer = noiseBuf;
       const ng = audioCtx.createGain(); ng.gain.setValueAtTime(0.9, now); ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
       nb.connect(ng); ng.connect(master);
-      // brief pleasant tick using sine
       const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
       osc.type = 'sine'; osc.frequency.setValueAtTime(950, now);
       g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.28, now + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
