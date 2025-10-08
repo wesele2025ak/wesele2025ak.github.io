@@ -12,7 +12,10 @@
   .muted{color:#a7a7a7;font-size:.95rem}
   .status{margin-top:10px;padding:10px;border-radius:8px;background:#0e1116;border:1px solid #1f2530;white-space:pre-wrap;min-height:3em}
   .ok{border-color:#2a5}.err{border-color:#d55}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .metaRow{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
+  .controlsBar{display:flex;gap:8px;align-items:center}
+  button{font:inherit;background:#1f88ff;color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+  button[disabled]{opacity:.6;cursor:not-allowed}
   .pill{display:inline-block;border:1px dashed #2b2e36;padding:6px 10px;border-radius:999px;font-size:.85rem;color:#bbc}
   .videoWrap{margin-top:12px;position:relative;border-radius:12px;overflow:hidden;background:#000;min-height:260px;display:none}
   video{width:100%;height:auto;display:block;background:#000;transform-origin:center center}
@@ -22,8 +25,6 @@
   .control.small{width:44px;height:44px}
   .control.big{width:72px;height:72px;background:linear-gradient(180deg,#2a86ff,#1a6fe0);box-shadow:0 6px 18px rgba(25,110,220,.25)}
   .control.topRight{top:12px;right:12px}
-  .control.topLeft{top:12px;left:12px}
-  .control.bottomLeft{left:20px;bottom:16px}
   .control.bottomCenter{left:50%;transform:translateX(-50%);bottom:18px}
   .control.bottomRight{right:20px;bottom:16px}
   .hint{margin-top:8px;font-size:.9rem;color:#cfcfcf}
@@ -34,15 +35,13 @@
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;padding:10px 16px;border-radius:10px;background:rgba(20,20,20,0.92);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.5);font-weight:600;z-index:9999;display:none}
   .toast.show{display:block;animation:toast-in .22s ease}
   @keyframes toast-in{from{transform:translateX(-50%) translateY(8px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
-  .progressOverlay{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:64%;max-width:520px;z-index:6;pointer-events:none;display:flex;align-items:center;gap:8px;opacity:0;transition:opacity .15s linear}
+  .progressOverlay{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:64%;max-width:520px;z-index:6;pointer-events:none;display:flex;flex-direction:column;gap:8px;align-items:stretch;opacity:0;transition:opacity .15s linear}
   .progressOverlay.visible{opacity:1}
   .progressWrap{height:10px;background:rgba(20,21,24,.6);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.04);flex:1;min-width:120px}
   .progressBar{height:100%;width:0%;background:#1f88ff;transition:width .12s linear}
+  .progressRowInner{display:flex;align-items:center;gap:8px}
   .progressText{font-size:.85rem;color:#cfcfcf;min-width:36px;text-align:right}
-  .metaRow{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
-  .controlsBar{display:flex;gap:8px;align-items:center}
-  button{font:inherit;background:#1f88ff;color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
-  button[disabled]{opacity:.6;cursor:not-allowed}
+  .progressMessage{font-size:.85rem;color:#bff7c6;text-align:center}
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 </style>
 </head>
@@ -64,9 +63,12 @@
     <div class="videoWrap" id="videoWrap" aria-hidden="true">
       <video id="camVid" autoplay playsinline muted></video>
       <div class="overlays" id="overlays">
-        <div class="progressOverlay" id="progressOverlay">
-          <div class="progressWrap"><div class="progressBar" id="progressBar"></div></div>
-          <div class="progressText" id="progressText">0%</div>
+        <div class="progressOverlay" id="progressOverlay" aria-hidden="true">
+          <div class="progressRowInner">
+            <div class="progressWrap"><div class="progressBar" id="progressBar"></div></div>
+            <div class="progressText" id="progressText">…</div>
+          </div>
+          <div class="progressMessage" id="progressMessage" aria-live="polite"></div>
         </div>
         <button class="control topRight small" id="fsBtn" aria-label="Pełny ekran" title="Pełny ekran">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg>
@@ -110,6 +112,7 @@
   const progressOverlay = document.getElementById('progressOverlay');
   const progressBar = document.getElementById('progressBar');
   const progressText = document.getElementById('progressText');
+  const progressMessage = document.getElementById('progressMessage');
   function setOk(m){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = m; }
   function setErr(m){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = m; }
   if(!eventToken || !t){ setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.'); } else { eventInfo.textContent = `Wydarzenie: ${eventToken}`; }
@@ -140,10 +143,11 @@
   let uploading = false;
   let currentFacing = 'environment';
   let switching = false;
-  const discovered = { user: null, environment: null };
   let freezeTimer = null;
   let lastVideoTime = 0;
   function doFlash(){ flashEl.classList.add('do'); setTimeout(()=> flashEl.classList.remove('do'), 180); }
+  function showToast(m){ toast.textContent = m; toast.classList.add('show'); setTimeout(()=> toast.classList.remove('show'), 2200); }
+  async function checkPermissionState(){ if(!navigator.permissions || !navigator.permissions.query) return null; try{ const p = await navigator.permissions.query({ name: 'camera' }); return p.state; } catch(e){ return null; } }
   function startFreezeWatcher(){
     lastVideoTime = camVid.currentTime || 0;
     if(freezeTimer) clearInterval(freezeTimer);
@@ -156,11 +160,7 @@
     }, 500);
   }
   function stopFreezeWatcher(){ if(freezeTimer){ clearInterval(freezeTimer); freezeTimer = null; lastVideoTime = 0; } }
-  function handleCameraFreeze(){
-    stopCamera();
-    setErr('Podgląd kamery uległ zacięciu — podgląd wyłączony. Użyj przycisku aby ponownie uruchomić kamerę.');
-    videoWrap.style.display = 'none';
-  }
+  function handleCameraFreeze(){ stopCamera(); setErr('Podgląd kamery uległ zacięciu — podgląd wyłączony. Użyj przycisku aby ponownie uruchomić kamerę.'); videoWrap.style.display = 'none'; }
   async function getDeviceIdForFacing(facing){
     try{
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -202,44 +202,29 @@
       try{
         const devices = await navigator.mediaDevices.enumerateDevices();
         const vids = devices.filter(d=>d.kind==='videoinput');
-        if(vids.length){
-          discovered.user = discovered.user || (vids[0] && vids[0].deviceId) || discovered.user;
-          discovered.environment = discovered.environment || (vids[vids.length-1] && vids[vids.length-1].deviceId) || discovered.environment;
-        }
+        if(vids.length){}
       }catch(e){}
     }catch(err){
       providePermissionHelp(err);
     }
   }
-  function stopCamera(){
-    stopFreezeWatcher();
-    if(activeStream){ activeStream.getTracks().forEach(t=>t.stop()); activeStream = null; }
-    try{ camVid.srcObject = null; }catch(e){}
-    videoWrap.style.display = 'none';
-  }
-  function needRotateForDevice(origW, origH){
-    const deviceLandscape = window.innerWidth > window.innerHeight;
-    const videoLandscape = origW > origH;
-    return deviceLandscape !== videoLandscape;
-  }
-  function rotateCanvas90(srcCanvas, clockwise){
-    const sW = srcCanvas.width;
-    const sH = srcCanvas.height;
-    const dst = document.createElement('canvas');
-    dst.width = sH;
-    dst.height = sW;
-    const ctx = dst.getContext('2d');
-    if(clockwise){ ctx.translate(dst.width,0); ctx.rotate(Math.PI/2); ctx.drawImage(srcCanvas,0,0); }
-    else { ctx.translate(0,dst.height); ctx.rotate(-Math.PI/2); ctx.drawImage(srcCanvas,0,0); }
-    return dst;
-  }
+  function stopCamera(){ stopFreezeWatcher(); if(activeStream){ activeStream.getTracks().forEach(t=>t.stop()); activeStream = null; } try{ camVid.srcObject = null; }catch(e){} videoWrap.style.display = 'none'; }
+  function needRotateForDevice(origW, origH){ const deviceLandscape = window.innerWidth > window.innerHeight; const videoLandscape = origW > origH; return deviceLandscape !== videoLandscape; }
+  function rotateCanvas90(srcCanvas, clockwise){ const sW = srcCanvas.width; const sH = srcCanvas.height; const dst = document.createElement('canvas'); dst.width = sH; dst.height = sW; const ctx = dst.getContext('2d'); if(clockwise){ ctx.translate(dst.width,0); ctx.rotate(Math.PI/2); ctx.drawImage(srcCanvas,0,0); } else { ctx.translate(0,dst.height); ctx.rotate(-Math.PI/2); ctx.drawImage(srcCanvas,0,0); } return dst; }
   let indeterminateTimer = null;
   function startIndeterminateProgress(){
-    let pct = 6;
+    stopIndeterminateProgress();
+    let pct = 8;
+    progressOverlay.classList.add('visible');
     progressBar.style.width = pct + '%';
     progressText.textContent = pct + '%';
-    progressOverlay.classList.add('visible');
-    indeterminateTimer = setInterval(()=>{ pct = Math.min(90, pct + Math.max(1, Math.round((90 - pct) * 0.06))); progressBar.style.width = pct + '%'; progressText.textContent = pct + '%'; }, 250);
+    progressMessage.textContent = '';
+    indeterminateTimer = setInterval(()=>{
+      pct = pct + (Math.random() * 6 + 2);
+      if(pct > 88) pct = 60 + Math.random() * 20;
+      progressBar.style.width = Math.min(90, Math.round(pct)) + '%';
+      progressText.textContent = Math.min(90, Math.round(pct)) + '%';
+    }, 220);
   }
   function stopIndeterminateProgress(){ if(indeterminateTimer){ clearInterval(indeterminateTimer); indeterminateTimer = null; } }
   let audioCtx = null;
@@ -260,8 +245,7 @@
       osc.type = 'sine'; osc.frequency.setValueAtTime(950, now);
       g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.28, now + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
       osc.connect(g); g.connect(master);
-      nb.start(now); nb.stop(now + 0.09);
-      osc.start(now); osc.stop(now + 0.09);
+      nb.start(now); nb.stop(now + 0.09); osc.start(now); osc.stop(now + 0.09);
     }catch(e){}
   }
   async function captureAndUpload(){
@@ -271,7 +255,6 @@
     captureBtn.disabled = true;
     doFlash();
     playShutter();
-    progressOverlay.classList.add('visible');
     const rawW = camVid.videoWidth || 1280;
     const rawH = camVid.videoHeight || 720;
     const tmp = document.createElement('canvas');
@@ -287,23 +270,25 @@
       try{
         await uploadFileWithProgress(file);
         setOk('Wysłano ✅');
+        progressMessage.textContent = 'Wysłano';
         showToast('Wysłano');
-      }catch(e){}
-      finally{
+        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1200);
+      }catch(e){
+        progressMessage.textContent = 'Błąd wysyłania';
+        setErr('Błąd wysyłania');
+        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 2000);
+      }finally{
         uploading = false;
         captureBtn.disabled = false;
-        setTimeout(()=>{ progressOverlay.classList.remove('visible'); }, 300);
         progressBar.style.width = '0%';
-        progressText.textContent = '0%';
+        progressText.textContent = '…';
         stopIndeterminateProgress();
       }
     }, 'image/jpeg', 0.92);
   }
   function uploadFileWithProgress(file){
-    progressBar.style.width = '4%';
-    progressText.textContent = '0%';
-    stopIndeterminateProgress();
-    progressOverlay.classList.add('visible');
+    progressMessage.textContent = '';
+    startIndeterminateProgress();
     return new Promise((res, rej)=>{
       const fd = new FormData();
       fd.append('file', file, file.name || 'photo.jpg');
@@ -313,8 +298,10 @@
       const xhr = new XMLHttpRequest();
       xhr.open('POST', WORKER_URL, true);
       xhr.timeout = 40000;
+      let seenReal = false;
       xhr.upload.onprogress = (e)=>{
         if(e.lengthComputable){
+          if(!seenReal){ seenReal = true; stopIndeterminateProgress(); }
           const pct = Math.round((e.loaded / e.total) * 100);
           progressBar.style.width = pct + '%';
           progressText.textContent = pct + '%';
@@ -326,19 +313,27 @@
         stopIndeterminateProgress();
         let json = {};
         try{ json = JSON.parse(xhr.responseText || '{}'); }catch(e){}
-        if(xhr.status>=200 && xhr.status<300){ progressBar.style.width = '100%'; progressText.textContent = '100%'; res(json); }
-        else{ setErr('Błąd uploadu: '+(json.error||xhr.status)); rej(json); }
+        if(xhr.status>=200 && xhr.status<300){
+          progressBar.style.width = '100%';
+          progressText.textContent = '100%';
+          progressMessage.textContent = 'Sukces';
+          setTimeout(()=>{ progressMessage.textContent = 'Wysłano'; }, 300);
+          setTimeout(()=>{ res(json); }, 500);
+        } else {
+          progressMessage.textContent = 'Błąd';
+          rej(json);
+        }
       };
-      xhr.onerror = ()=>{ stopIndeterminateProgress(); setErr('Błąd sieci podczas wysyłania'); rej(new Error('network')); };
-      xhr.ontimeout = ()=>{ stopIndeterminateProgress(); setErr('Timeout podczas uploadu'); rej(new Error('timeout')); };
-      try{ xhr.send(fd); }catch(e){ stopIndeterminateProgress(); setErr('Błąd wysyłania: '+e.message); rej(e); }
+      xhr.onerror = ()=>{ stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci'; rej(new Error('network')); };
+      xhr.ontimeout = ()=>{ stopIndeterminateProgress(); progressMessage.textContent = 'Timeout'; rej(new Error('timeout')); };
+      try{ xhr.send(fd); }catch(e){ stopIndeterminateProgress(); progressMessage.textContent = 'Błąd wysyłania'; rej(e); }
     });
   }
   fileInput.addEventListener('change', async ()=>{
     const f = fileInput.files && fileInput.files[0];
     if(!f){ setErr('Brak pliku'); return; }
     setOk('Wybrano plik — wysyłam...');
-    try{ await uploadFileWithProgress(f); setOk('Wysłano ✅'); showToast('Wysłano'); }catch(e){}finally{ setTimeout(()=>{ progressOverlay.classList.remove('visible'); },300); progressBar.style.width='0%'; progressText.textContent='0%'; stopIndeterminateProgress(); }
+    try{ await uploadFileWithProgress(f); setOk('Wysłano ✅'); showToast('Wysłano'); setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1200); }catch(e){ setErr('Błąd uploadu'); setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1600); }finally{ progressBar.style.width='0%'; progressText.textContent='…'; stopIndeterminateProgress(); }
   });
   document.getElementById('openBtn').addEventListener('click', async ()=>{ await startCamera(); });
   captureBtn.addEventListener('click', captureAndUpload);
@@ -367,9 +362,7 @@
       Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`; }
   openInBrowserBtn.addEventListener('click', ()=>{ window.open(location.href, '_blank', 'noopener'); });
   window.addEventListener('pagehide', ()=>{ if(activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
-  fsBtn.addEventListener('click', async ()=>{
-    try{ if(!document.fullscreenElement) await videoWrap.requestFullscreen(); else await document.exitFullscreen(); }catch(e){}
-  });
+  fsBtn.addEventListener('click', async ()=>{ try{ if(!document.fullscreenElement) await videoWrap.requestFullscreen(); else await document.exitFullscreen(); }catch(e){} });
   document.addEventListener('fullscreenchange', ()=>{});
 })();
 </script>
