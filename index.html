@@ -43,46 +43,34 @@
   <div class="card">
     <h1>Dodaj zdjęcie — podgląd live</h1>
     <div class="muted" id="eventInfo">Sprawdzam token...</div>
-
     <div class="status" id="statusBox">Gotowy.</div>
-
     <div style="height:10px"></div>
     <span class="pill" id="uuidInfo">UUID: …</span>
-
     <div class="videoWrap" id="videoWrap" aria-hidden="true">
       <video id="camVid" autoplay playsinline muted></video>
       <button class="overlayBtn" id="captureBtn" title="Zrób zdjęcie">Zrób zdjęcie</button>
     </div>
-
     <div class="row">
       <button id="openBtn" type="button">Uruchom kamerę / wybierz plik</button>
       <button id="retryPermBtn" type="button">Sprawdź uprawnienia</button>
       <button id="openInBrowserBtn" type="button" style="display:none">Otwórz w przeglądarce</button>
       <input id="file" type="file" accept="image/*" capture="environment" />
     </div>
-
     <div class="hint" id="hintBox">Naciśnij "Uruchom kamerę", następnie przycisk "Zrób zdjęcie". Po zrobieniu — zdjęcie wysyłane jest natychmiast.</div>
-
     <div class="inApp" id="inAppBox" style="display:none"></div>
-
     <button class="openCameraFallback" id="openCameraFallback">Uruchom kamerę</button>
-
     <div style="height:10px"></div>
     <div class="muted">Link jest wspólny dla wydarzenia. Upload następuje od razu po zrobieniu zdjęcia.</div>
   </div>
-
   <div class="flash" id="flash"></div>
   <div class="toast" id="toast">Wysłano</div>
-
 <script>
 (function(){
   "use strict";
-
   const WORKER_URL = 'https://wesele-worker.wesele2025ak.workers.dev/upload';
   const qs = new URLSearchParams(location.search);
   const eventToken = qs.get('event') || '';
   const t = qs.get('t') || '';
-
   const statusBox = document.getElementById('statusBox');
   const eventInfo = document.getElementById('eventInfo');
   const uuidInfo = document.getElementById('uuidInfo');
@@ -98,13 +86,9 @@
   const flashEl = document.getElementById('flash');
   const toast = document.getElementById('toast');
   const openCameraFallback = document.getElementById('openCameraFallback');
-
   function setOk(msg){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = msg; }
   function setErr(msg){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = msg; }
-
-  if(!eventToken || !t){ setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.'); }
-  else { eventInfo.textContent = `Wydarzenie: ${eventToken}`; }
-
+  if(!eventToken || !t){ setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.'); } else { eventInfo.textContent = `Wydarzenie: ${eventToken}`; }
   const memoryStore = {};
   const safeStorage = { get(k){ try{ return localStorage.getItem(k)}catch(e){return memoryStore[k]??null}}, set(k,v){ try{ localStorage.setItem(k,v)}catch(e){ memoryStore[k]=String(v)}}};
   function makeUUID(){
@@ -121,7 +105,6 @@
   let uuid = safeStorage.get(UUID_KEY);
   if(!uuid){ uuid = makeUUID(); safeStorage.set(UUID_KEY, uuid); }
   uuidInfo.textContent = 'UUID: ' + uuid;
-
   function detectInApp(){
     const ua = navigator.userAgent || navigator.vendor || '';
     const tests = ['FBAN','FBAV','Instagram','Line','Twitter','LinkedInApp','Vkontakte','Telegram','WhatsApp'];
@@ -130,45 +113,25 @@
   }
   const inApp = detectInApp();
   if(inApp){ inAppBox.style.display='block'; inAppBox.innerHTML = `<strong>Wygląda na wbudowaną przeglądarkę (${inApp}).</strong> Jeśli kamera nie działa, kliknij "Otwórz w przeglądarce".`; openInBrowserBtn.style.display='inline-block'; }
-
   window.addEventListener('error',(e)=> setErr('Błąd skryptu: '+(e.message||'nieznany')));
   window.addEventListener('unhandledrejection',(e)=> setErr('Błąd obietnicy: '+(e.reason && e.reason.message || 'nieznany')));
-
   let activeStream = null;
   let uploading = false;
-
-  function doFlash(){
-    flashEl.classList.add('do');
-    setTimeout(()=> flashEl.classList.remove('do'), 180);
-  }
-  function showToast(msg){
-    toast.textContent = msg;
-    toast.classList.add('show');
-    setTimeout(()=> toast.classList.remove('show'), 2200);
-  }
-
-  async function checkPermissionState(){
-    if(!navigator.permissions || !navigator.permissions.query) return null;
-    try{
-      const p = await navigator.permissions.query({ name: 'camera' });
-      p.onchange = ()=> console.log('permission change', p.state);
-      return p.state;
-    } catch(e){ return null; }
-  }
-
+  function doFlash(){ flashEl.classList.add('do'); setTimeout(()=> flashEl.classList.remove('do'), 180); }
+  function showToast(msg){ toast.textContent = msg; toast.classList.add('show'); setTimeout(()=> toast.classList.remove('show'), 2200); }
+  async function checkPermissionState(){ if(!navigator.permissions || !navigator.permissions.query) return null; try{ const p = await navigator.permissions.query({ name: 'camera' }); p.onchange = ()=> console.log('permission change', p.state); return p.state; } catch(e){ return null; } }
   let freezeTimer = null;
   let lastVideoTime = 0;
   function startFreezeWatcher(){
     lastVideoTime = camVid.currentTime || 0;
     if(freezeTimer) clearInterval(freezeTimer);
     freezeTimer = setInterval(()=>{
-      if(!camVid || camVid.readyState < 2 || camVid.paused || camVid.ended){
-      }
+      if(!camVid || camVid.readyState < 2 || camVid.paused || camVid.ended){}
       const now = camVid.currentTime || 0;
       if(now === lastVideoTime){
-        if(typeof lastVideoTime === 'number') {
+        if(typeof lastVideoTime === 'number'){
           lastVideoTime = { frozenSince: Date.now(), last: lastVideoTime };
-        } else if(lastVideoTime && (Date.now() - lastVideoTime.frozenSince) > 1500) {
+        } else if(lastVideoTime && (Date.now() - lastVideoTime.frozenSince) > 1500){
           handleCameraFreeze();
         }
       } else {
@@ -176,15 +139,13 @@
       }
     }, 500);
   }
-  function stopFreezeWatcher(){ if(freezeTimer) { clearInterval(freezeTimer); freezeTimer = null; lastVideoTime = 0; } }
-
+  function stopFreezeWatcher(){ if(freezeTimer){ clearInterval(freezeTimer); freezeTimer = null; lastVideoTime = 0; } }
   function handleCameraFreeze(){
     stopCamera();
     setErr('Podgląd kamery uległ zacięciu — podgląd wyłączony. Użyj przycisku aby ponownie uruchomić kamerę.');
     openCameraFallback.style.display = 'inline-block';
     videoWrap.style.display = 'none';
   }
-
   async function startCamera(){
     openCameraFallback.style.display = 'none';
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
@@ -208,7 +169,6 @@
       providePermissionHelp(err);
     }
   }
-
   function stopCamera(){
     stopFreezeWatcher();
     if(activeStream){
@@ -218,7 +178,6 @@
     try{ camVid.srcObject = null; } catch(e){}
     videoWrap.style.display = 'none';
   }
-
   function getOrientationAngle(){
     try {
       if (screen && screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
@@ -226,52 +185,42 @@
     if(typeof window.orientation === 'number') return window.orientation;
     return 0;
   }
-
   function captureAndUpload(){
     if(uploading) return;
     if(!camVid || camVid.readyState < 2){ setErr('Kamera niegotowa.'); return; }
     uploading = true;
     captureBtn.disabled = true;
-
     doFlash();
-
     const rawW = camVid.videoWidth || 1280;
     const rawH = camVid.videoHeight || 720;
     const angle = getOrientationAngle() || 0;
-    let cw = rawW, ch = rawH, rotate = 0;
+    let cw = rawW, ch = rawH;
     const a = ((angle % 360) + 360) % 360;
-    if(a === 90 || a === 270){
-      cw = rawH; ch = rawW;
-    } else { cw = rawW; ch = rawH; }
-    rotate = a * Math.PI / 180;
-
+    if(a === 90 || a === 270){ cw = rawH; ch = rawW; } else { cw = rawW; ch = rawH; }
+    const rotate = a * Math.PI / 180;
     const canvas = document.createElement('canvas');
     canvas.width = cw;
     canvas.height = ch;
     const ctx = canvas.getContext('2d');
-
     ctx.save();
     ctx.translate(cw/2, ch/2);
     ctx.rotate(rotate);
     ctx.drawImage(camVid, -rawW/2, -rawH/2, rawW, rawH);
     ctx.restore();
-
     canvas.toBlob(async (blob) => {
       if(!blob){ setErr('Nie udało się przygotować zdjęcia'); uploading=false; captureBtn.disabled=false; return; }
       const file = new File([blob], 'photo.jpg', { type:'image/jpeg' });
-
       try {
         await uploadFile(file);
         setOk('Wysłano ✅');
         showToast('Wysłano');
-      } catch(e){
-      } finally {
+      } catch(e){}
+      finally {
         uploading = false;
         captureBtn.disabled = false;
       }
     }, 'image/jpeg', 0.92);
   }
-
   function uploadFile(file){
     const fd = new FormData();
     fd.append('file', file, file.name || 'photo.jpg');
@@ -294,18 +243,15 @@
       try{ xhr.send(fd); } catch(e){ setErr('Błąd wysyłania: '+e.message); rej(e); }
     });
   }
-
   fileInput.addEventListener('change', async ()=>{
     const f = fileInput.files && fileInput.files[0];
     if(!f){ setErr('Brak pliku'); return; }
     setOk('Wybrano plik — wysyłam...');
     try{ await uploadFile(f); setOk('Wysłano ✅'); showToast('Wysłano'); } catch(e){}
   });
-
   openBtn.addEventListener('click', async ()=>{ openCameraFallback.style.display='none'; await startCamera(); });
   captureBtn.addEventListener('click', captureAndUpload);
   openCameraFallback.addEventListener('click', async ()=>{ await startCamera(); openCameraFallback.style.display='none'; });
-
   retryPermBtn.addEventListener('click', async ()=>{
     setOk('Sprawdzam stan uprawnień...');
     const state = await checkPermissionState();
@@ -314,7 +260,6 @@
     if(state === 'denied'){ setErr('Uprawnzenie zablokowane. Zobacz instrukcje w polu poniżej.'); showPermissionInstructions(); return; }
     setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub otwórz w innej przeglądarce.');
   });
-
   async function checkPermissionState(){
     if(!navigator.permissions || !navigator.permissions.query) return null;
     try {
@@ -322,13 +267,11 @@
       return p.state;
     } catch(e){ return null; }
   }
-
   function providePermissionHelp(err){
     const msg = err && err.name ? err.name : String(err);
     setErr('Dostęp do kamery odrzucony lub zablokowany: ' + msg + '\nZobacz instrukcje poniżej.');
     showPermissionInstructions();
   }
-
   function showPermissionInstructions(){
     inAppBox.style.display = 'block';
     inAppBox.innerHTML = `<strong>Jak odblokować kamerę?</strong>
@@ -340,11 +283,8 @@
       </ol>
       Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`;
   }
-
   openInBrowserBtn.addEventListener('click', ()=>{ window.open(location.href, '_blank', 'noopener'); });
-
   window.addEventListener('pagehide', ()=>{ if(activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
-
 })();
 </script>
 </body>
