@@ -20,7 +20,6 @@
   video{ width:100%; height:auto; display:block; background:#000; transform-origin:center center; }
   .overlayBtn{ position:absolute; right:12px; bottom:12px; z-index:5 }
   .hint{ margin-top:8px; font-size:.9rem; color:#cfcfcf }
-  .danger{ color:#ffb3b3 }
   .inApp{ margin-top:8px; padding:8px; background:#16181b; border:1px solid #2a2d33; border-radius:8px }
   input[type=file]{ position:absolute; left:-9999px }
   .flash { position:fixed; left:0; top:0; right:0; bottom:0; pointer-events:none; background:rgba(255,255,255,0); opacity:0; transition:opacity .18s ease; mix-blend-mode:screen; z-index:9999; }
@@ -29,6 +28,10 @@
   .toast.show { display:block; animation:toast-in .2s ease; }
   @keyframes toast-in { from { transform:translateX(-50%) translateY(8px); opacity:0 } to { transform:translateX(-50%) translateY(0); opacity:1 } }
   .openCameraFallback { display:none; margin-top:8px }
+  .progressWrap{ margin-top:12px; height:12px; background:#15161a; border-radius:999px; overflow:hidden; border:1px solid #222 }
+  .progressBar{ height:100%; width:0%; background:#1f88ff; transition:width .15s linear }
+  .progressText{ margin-left:8px; font-size:.85rem; color:#cfcfcf }
+  .progressRow{ display:flex; align-items:center; gap:8px; margin-top:8px }
 </style>
 </head>
 <body>
@@ -51,6 +54,10 @@
     <div class="hint" id="hintBox">Naciśnij "Uruchom kamerę", następnie przycisk "Zrób zdjęcie". Po zrobieniu — zdjęcie wysyłane jest natychmiast.</div>
     <div class="inApp" id="inAppBox" style="display:none"></div>
     <button class="openCameraFallback" id="openCameraFallback">Uruchom kamerę</button>
+    <div class="progressRow" id="progressRow" style="display:none">
+      <div class="progressWrap"><div class="progressBar" id="progressBar"></div></div>
+      <div class="progressText" id="progressText">0%</div>
+    </div>
     <div style="height:10px"></div>
     <div class="muted">Link jest wspólny dla wydarzenia. Upload następuje od razu po zrobieniu zdjęcia.</div>
   </div>
@@ -78,6 +85,9 @@
   const flashEl = document.getElementById('flash');
   const toast = document.getElementById('toast');
   const openCameraFallback = document.getElementById('openCameraFallback');
+  const progressRow = document.getElementById('progressRow');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
   function setOk(msg){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = msg; }
   function setErr(msg){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = msg; }
   if(!eventToken || !t){ setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.'); } else { eventInfo.textContent = `Wydarzenie: ${eventToken}`; }
@@ -169,22 +179,30 @@
     try{ camVid.srcObject = null; } catch(e){}
     videoWrap.style.display = 'none';
   }
-  function getScreenAngle(){
-    try {
-      if (screen && screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
-    } catch(e){}
-    if(typeof window.orientation === 'number') return window.orientation;
-    return 0;
+  function needRotateForDevice(origW, origH){
+    const deviceLandscape = window.innerWidth > window.innerHeight;
+    const videoLandscape = origW > origH;
+    return deviceLandscape !== videoLandscape;
   }
-  function normalizeAngle(a){
-    const ang = ((a % 360) + 360) % 360;
-    if(ang === 0) return 0;
-    if(ang === 90) return 90;
-    if(ang === 180) return 180;
-    if(ang === 270) return 270;
-    return 0;
+  function rotateCanvas90(srcCanvas, clockwise){
+    const sW = srcCanvas.width;
+    const sH = srcCanvas.height;
+    const dst = document.createElement('canvas');
+    dst.width = sH;
+    dst.height = sW;
+    const ctx = dst.getContext('2d');
+    if(clockwise){
+      ctx.translate(dst.width, 0);
+      ctx.rotate(Math.PI/2);
+      ctx.drawImage(srcCanvas, 0, 0);
+    } else {
+      ctx.translate(0, dst.height);
+      ctx.rotate(-Math.PI/2);
+      ctx.drawImage(srcCanvas, 0, 0);
+    }
+    return dst;
   }
-  function captureAndUpload(){
+  async function captureAndUpload(){
     if(uploading) return;
     if(!camVid || camVid.readyState < 2){ setErr('Kamera niegotowa.'); return; }
     uploading = true;
@@ -192,56 +210,55 @@
     doFlash();
     const rawW = camVid.videoWidth || 1280;
     const rawH = camVid.videoHeight || 720;
-    const angle = normalizeAngle(getScreenAngle());
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if(angle === 0){
-      canvas.width = rawW; canvas.height = rawH;
-      ctx.drawImage(camVid, 0, 0, rawW, rawH);
-    } else if(angle === 90){
-      canvas.width = rawH; canvas.height = rawW;
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI/2);
-      ctx.drawImage(camVid, 0, 0, rawW, rawH);
-    } else if(angle === 180){
-      canvas.width = rawW; canvas.height = rawH;
-      ctx.translate(canvas.width, canvas.height);
-      ctx.rotate(Math.PI);
-      ctx.drawImage(camVid, 0, 0, rawW, rawH);
-    } else if(angle === 270){
-      canvas.width = rawH; canvas.height = rawW;
-      ctx.translate(0, canvas.height);
-      ctx.rotate(-Math.PI/2);
-      ctx.drawImage(camVid, 0, 0, rawW, rawH);
-    } else {
-      canvas.width = rawW; canvas.height = rawH;
-      ctx.drawImage(camVid, 0, 0, rawW, rawH);
+    const tmp = document.createElement('canvas');
+    tmp.width = rawW;
+    tmp.height = rawH;
+    const tctx = tmp.getContext('2d');
+    tctx.drawImage(camVid, 0, 0, rawW, rawH);
+    let finalCanvas = tmp;
+    if(needRotateForDevice(rawW, rawH)){
+      finalCanvas = rotateCanvas90(tmp, true);
     }
-    canvas.toBlob(async (blob) => {
+    finalCanvas.toBlob(async (blob) => {
       if(!blob){ setErr('Nie udało się przygotować zdjęcia'); uploading=false; captureBtn.disabled=false; return; }
       const file = new File([blob], 'photo.jpg', { type:'image/jpeg' });
       try {
-        await uploadFile(file);
+        await uploadFileWithProgress(file);
         setOk('Wysłano ✅');
         showToast('Wysłano');
       } catch(e){}
       finally {
         uploading = false;
         captureBtn.disabled = false;
+        progressRow.style.display = 'none';
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
       }
     }, 'image/jpeg', 0.92);
   }
-  function uploadFile(file){
-    const fd = new FormData();
-    fd.append('file', file, file.name || 'photo.jpg');
-    fd.append('event', eventToken);
-    fd.append('uuid', uuid);
-    fd.append('t', t);
+  function uploadFileWithProgress(file){
+    progressRow.style.display = 'flex';
+    progressBar.style.width = '0%';
+    progressText.textContent = '0%';
     return new Promise((res, rej)=>{
+      const fd = new FormData();
+      fd.append('file', file, file.name || 'photo.jpg');
+      fd.append('event', eventToken);
+      fd.append('uuid', uuid);
+      fd.append('t', t);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', WORKER_URL, true);
       xhr.timeout = 30000;
-      xhr.upload.onprogress = (e)=>{};
+      xhr.upload.onprogress = (e)=>{
+        if(e.lengthComputable){
+          const pct = Math.round((e.loaded / e.total) * 100);
+          progressBar.style.width = pct + '%';
+          progressText.textContent = pct + '%';
+        } else {
+          progressBar.style.width = '80%';
+          progressText.textContent = '...';
+        }
+      };
       xhr.onload = ()=>{
         let json = {};
         try{ json = JSON.parse(xhr.responseText || '{}'); }catch(e){}
@@ -257,7 +274,7 @@
     const f = fileInput.files && fileInput.files[0];
     if(!f){ setErr('Brak pliku'); return; }
     setOk('Wybrano plik — wysyłam...');
-    try{ await uploadFile(f); setOk('Wysłano ✅'); showToast('Wysłano'); } catch(e){}
+    try{ await uploadFileWithProgress(f); setOk('Wysłano ✅'); showToast('Wysłano'); } catch(e){} finally { progressRow.style.display = 'none'; progressBar.style.width = '0%'; progressText.textContent = '0%'; }
   });
   openBtn.addEventListener('click', async ()=>{ openCameraFallback.style.display='none'; await startCamera(); });
   captureBtn.addEventListener('click', captureAndUpload);
@@ -272,10 +289,7 @@
   });
   async function checkPermissionState(){
     if(!navigator.permissions || !navigator.permissions.query) return null;
-    try {
-      const p = await navigator.permissions.query({ name: 'camera' });
-      return p.state;
-    } catch(e){ return null; }
+    try { const p = await navigator.permissions.query({ name: 'camera' }); return p.state; } catch(e){ return null; }
   }
   function providePermissionHelp(err){
     const msg = err && err.name ? err.name : String(err);
