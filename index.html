@@ -26,12 +26,14 @@
   .control.big{width:72px;height:72px;background:linear-gradient(180deg,#2a86ff,#1a6fe0);box-shadow:0 6px 18px rgba(25,110,220,.25)}
   .control.topRight{top:12px;right:12px}
   .control.topLeft{top:12px;left:12px}
+  .control.topLeft.offset{left:64px}
   .control.bottomCenter{left:50%;transform:translateX(-50%);bottom:18px}
   .control.topCenter{left:50%;transform:translateX(-50%);top:18px}
   .control.leftCenter{top:50%;left:18px;transform:translateY(-50%)}
   .control.rightCenter{top:50%;right:18px;transform:translateY(-50%)}
   .control.hidden{display:none}
   #switchBtn{right:16px;bottom:16px;top:auto;left:auto;transform:none;z-index:8}
+  .control.active{background:linear-gradient(180deg,#ffd166,#ffb347);color:#111;border-color:rgba(255,255,255,0.08)}
   .hint{margin-top:8px;font-size:.9rem;color:#cfcfcf}
   .inApp{margin-top:8px;padding:8px;background:#16181b;border:1px solid #2a2d33;border-radius:8px}
   input[type=file]{position:absolute;left:-9999px}
@@ -79,7 +81,10 @@
         <button class="control topRight small" id="fsBtn" aria-label="Pełny ekran" title="Pełny ekran">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg>
         </button>
-        <button class="control topLeft small hidden" id="stopBtn" aria-label="Wyłącz aparat" title="Wyłącz aparat">
+        <button class="control topLeft small hidden" id="torchBtn" aria-label="Włącz lampę" title="Włącz lampę">
+          <svg id="torchSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v6"/><path d="M17 2v6"/><path d="M12 19v3"/><path d="M10 8h4l1 8H9z"/></svg>
+        </button>
+        <button class="control topLeft offset small hidden" id="stopBtn" aria-label="Wyłącz aparat" title="Wyłącz aparat" style="left:64px">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="13" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/></svg>
         </button>
         <button class="control bottomCenter big" id="captureBtn" aria-label="Zrób zdjęcie" title="Zrób zdjęcie">
@@ -125,6 +130,8 @@
   const progressText = document.getElementById('progressText');
   const progressMessage = document.getElementById('progressMessage');
   const stopBtn = document.getElementById('stopBtn');
+  const torchBtn = document.getElementById('torchBtn');
+  const torchSvg = document.getElementById('torchSvg');
 
   function setOk(m){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = m; }
   function setErr(m){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = m; }
@@ -206,6 +213,8 @@
   let lastProgress = 0;
   let indeterminateTimer = null;
   let audioCtx = null;
+  let torchSupported = false;
+  let torchOn = false;
 
   function doFlash(){
     try {
@@ -328,6 +337,16 @@
       startFreezeWatcher();
       updateControlsVisibility();
       updateCapturePosition();
+      try {
+        const track = stream.getVideoTracks && stream.getVideoTracks()[0];
+        const caps = track && track.getCapabilities ? track.getCapabilities() : null;
+        torchSupported = !!(caps && caps.torch);
+      } catch (e) { torchSupported = false; }
+      torchBtn.classList.toggle('hidden', !torchSupported);
+      if (!torchSupported) {
+        torchOn = false;
+        torchBtn.classList.remove('active');
+      }
     } catch (err) {
       providePermissionHelp(err);
     }
@@ -336,6 +355,14 @@
   function stopCamera(){
     stopFreezeWatcher();
     if (activeStream) {
+      if (torchOn) {
+        try {
+          const track = activeStream.getVideoTracks && activeStream.getVideoTracks()[0];
+          if (track && track.applyConstraints) track.applyConstraints({ advanced: [{ torch: false }] }).catch(()=>{});
+        } catch (e) {}
+        torchOn = false;
+        torchBtn.classList.remove('active');
+      }
       activeStream.getTracks().forEach(t => t.stop());
       activeStream = null;
     }
@@ -343,6 +370,7 @@
     videoWrap.style.display = 'none';
     previewImg.style.display = 'none';
     updateControlsVisibility();
+    torchBtn.classList.add('hidden');
   }
 
   function updateControlsVisibility(){
@@ -501,7 +529,6 @@
         return;
       }
 
-      // wykonaj przechwycenie obrazu, potem daj flash i dźwięk (by uniknąć poruszenia)
       doFlash();
       playShutter();
 
@@ -701,8 +728,36 @@
 
   window.addEventListener('orientationchange', ()=>{ setTimeout(()=> updateCapturePosition(), 120); });
 
+  function updateTorchButtonState(){
+    torchBtn.classList.toggle('hidden', !torchSupported);
+    if (torchOn) torchBtn.classList.add('active'); else torchBtn.classList.remove('active');
+    torchBtn.title = torchOn ? 'Lampa: włączona' : 'Lampa: wyłączona';
+  }
+
+  async function setTorch(on){
+    if (!activeStream) return;
+    try {
+      const track = activeStream.getVideoTracks && activeStream.getVideoTracks()[0];
+      if (!track || !track.applyConstraints) throw new Error('no-track');
+      await track.applyConstraints({ advanced: [{ torch: !!on }] });
+      torchOn = !!on;
+      updateTorchButtonState();
+    } catch (e) {
+      torchSupported = false;
+      torchOn = false;
+      updateTorchButtonState();
+      showToast('Lampa nieobsługiwana na tym urządzeniu');
+    }
+  }
+
+  torchBtn.addEventListener('click', async ()=>{
+    if (!torchSupported) { showToast('Lampa nieobsługiwana'); return; }
+    await setTorch(!torchOn);
+  });
+
   updateControlsVisibility();
   updateCapturePosition();
+  updateTorchButtonState();
 
 })();
 </script>
