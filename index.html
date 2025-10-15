@@ -20,7 +20,7 @@
   video{width:100%;height:100%;display:block;background:#000;object-fit:cover}
   .previewImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:5}
   .overlays{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none}
-  .control{position:absolute;pointer-events:auto;background:rgba(20,22,26,.55);border:1px solid rgba(255,255,255,.06);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;border-radius:999px;padding:8px;cursor:pointer;color:#fff}
+  .control{position:absolute;pointer-events:auto;background:rgba(20,22,26,.55);border:1px solid rgba(255,255,255,.06);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;border-radius:999px;padding:8px;cursor:pointer;color:#fff;z-index:7}
   .control svg{width:20px;height:20px;display:block}
   .control.small{width:44px;height:44px}
   .control.big{width:72px;height:72px;background:linear-gradient(180deg,#2a86ff,#1a6fe0);box-shadow:0 6px 18px rgba(25,110,220,.25)}
@@ -31,6 +31,7 @@
   .control.leftCenter{top:50%;left:18px;transform:translateY(-50%)}
   .control.rightCenter{top:50%;right:18px;transform:translateY(-50%)}
   .control.hidden{display:none}
+  #switchBtn{right:16px;bottom:16px;top:auto;left:auto;transform:none;z-index:8}
   .hint{margin-top:8px;font-size:.9rem;color:#cfcfcf}
   .inApp{margin-top:8px;padding:8px;background:#16181b;border:1px solid #2a2d33;border-radius:8px}
   input[type=file]{position:absolute;left:-9999px}
@@ -468,6 +469,10 @@
   async function captureAndUpload(){
     if (uploading) return;
     if (!camVid || camVid.readyState < 2) { setErr('Aparat niegotowy.'); return; }
+
+    lastProgress = 0;
+    setProgress(0);
+
     uploading = true;
     captureBtn.disabled = true;
     let blob = null;
@@ -496,7 +501,7 @@
         return;
       }
 
-      // flash & sound AFTER photo is captured to avoid motion blur
+      // wykonaj przechwycenie obrazu, potem daj flash i dźwięk (by uniknąć poruszenia)
       doFlash();
       playShutter();
 
@@ -512,12 +517,12 @@
         progressMessage.textContent = 'Wysłano';
         showToast('Wysłano');
         animateTo100();
-        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1100);
+        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 1100);
         setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 900);
       } catch (e) {
         progressMessage.textContent = 'Błąd wysyłania';
         setErr('Błąd wysyłania');
-        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 2000);
+        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2000);
         setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 900);
       }
     } finally {
@@ -526,6 +531,7 @@
       progressBar.style.width = '0%';
       progressText.textContent = '…';
       stopIndeterminateProgress();
+      lastProgress = 0;
     }
   }
 
@@ -562,21 +568,23 @@
           animateTo100();
           progressMessage.textContent = 'Sukces';
           setTimeout(()=>{ progressMessage.textContent = 'Wysłano'; }, 300);
-          setTimeout(()=>{ res(json); }, 650);
+          setTimeout(()=>{ lastProgress = 100; res(json); }, 650);
         } else {
           progressMessage.textContent = 'Błąd';
+          lastProgress = 0;
           rej(json);
         }
       };
 
-      xhr.onerror = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci'; rej(new Error('network')); };
-      xhr.ontimeout = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Timeout'; rej(new Error('timeout')); };
+      xhr.onerror = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci'; lastProgress = 0; rej(new Error('network')); };
+      xhr.ontimeout = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Timeout'; lastProgress = 0; rej(new Error('timeout')); };
 
       try {
         xhr.send(fd);
       } catch (e) {
         stopIndeterminateProgress();
         progressMessage.textContent = 'Błąd wysyłania';
+        lastProgress = 0;
         rej(e);
       }
     });
@@ -585,19 +593,22 @@
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files && fileInput.files[0];
     if (!f) { setErr('Brak pliku'); return; }
+    lastProgress = 0;
+    setProgress(0);
     setOk('Wybrano plik — wysyłam...');
     try {
       await uploadFileWithProgress(f);
       setOk('Wysłano ✅');
       showToast('Wysłano');
-      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1200);
+      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 1200);
     } catch (e) {
       setErr('Błąd uploadu');
-      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1600);
+      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 1600);
     } finally {
       progressBar.style.width = '0%';
       progressText.textContent = '…';
       stopIndeterminateProgress();
+      lastProgress = 0;
     }
   });
 
