@@ -29,9 +29,6 @@
   .card{color:#ffffff;max-width:900px;margin:0 auto;background:var(--card);border:0px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
   h1{font-size:1.15rem;margin:0 0 8px; letter-spacing:.2px}
   .muted{color:var(--muted);font-size:.95rem}
-  .status{margin-top:10px;padding:10px;border-radius:10px;background:var(--overlay);border:1px solid var(--border);white-space:pre-wrap;min-height:3em}
-  .ok{border-color:var(--ok)}
-  .err{border-color:var(--err)}
   .metaRow{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
   .controlsBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   button{
@@ -80,9 +77,12 @@
   .progressBar{height:100%;width:0%;background:var(--green-forest);transition:width .12s linear}
   .progressRowInner{display:flex;align-items:center;gap:12px;padding:6px}
   .progressText{font-size:.95rem;color:#5a5137;min-width:48px;text-align:right}
-  .progressMessage{font-size:1.05rem;color:#3a2d0e;text-align:center;font-weight:700}
+  .progressMessage{font-size:1.05rem;text-align:center;font-weight:800}
+  .progressMessage.success{color:#0a5}
+  .progressMessage.error{color:#c22}
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .hidden{display:none !important}
+  .eventInfo{color:#fff; font-weight:800; margin-bottom:6px; text-shadow:0 1px 2px rgba(0,0,0,.25)}
 
   #captureBtn{
     background:
@@ -107,9 +107,9 @@
 </head>
 <body>
   <div class="card">
+    <div class="eventInfo" id="eventInfo">Sprawdzam token...</div>
     <h1>Zrób zdjęcie - zostanie wysłane automatycznie!</h1>
-    <div class="muted" id="eventInfo">Sprawdzam token...</div>
-    <div class="status" id="statusBox">Gotowy.</div>
+    <!-- status box removed -->
     <div style="height:10px"></div>
     <div class="metaRow">
       <div class="controlsBar" id="topControls">
@@ -161,7 +161,6 @@
   const eventToken = qs.get('event') || '';
   const t = qs.get('t') || '';
 
-  const statusBox = document.getElementById('statusBox');
   const eventInfo = document.getElementById('eventInfo');
   const openBtn = document.getElementById('openBtn');
   const switchBtn = document.getElementById('switchBtn');
@@ -183,10 +182,23 @@
   const progressMessage = document.getElementById('progressMessage');
   const stopBtn = document.getElementById('stopBtn');
   const torchBtn = document.getElementById('torchBtn');
-  const torchSvg = document.getElementById('torchSvg');
 
-  function setOk(m){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = m; }
-  function setErr(m){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = m; }
+  function showMessage(type, msg, durationMs = 3500){
+    try {
+      progressOverlay.classList.add('visible');
+      progressMessage.textContent = msg;
+      progressMessage.classList.remove('success','error');
+      if (type === 'success') progressMessage.classList.add('success');
+      if (type === 'error') progressMessage.classList.add('error');
+      if (durationMs > 0) {
+        const localToken = Symbol('msg');
+        showMessage._last = localToken;
+        setTimeout(()=>{ if (showMessage._last === localToken) progressOverlay.classList.remove('visible'); }, durationMs);
+      }
+    } catch(e){}
+  }
+  const setOk = (m)=> showMessage('success', m);
+  const setErr = (m)=> showMessage('error', m, 4200);
 
   if (!eventToken || !t) {
     eventInfo.textContent = 'Brak parametrów ?event= i ?t= w linku — działam w trybie testowym.';
@@ -598,16 +610,17 @@
       try {
         await uploadFileWithProgress(new File([blob], 'photo.jpg', { type: blob.type }));
         setOk('Wysłano ✅');
-        progressMessage.textContent = 'Wysłano';
         showToast('Wysłano');
         animateTo100();
-        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 1100);
-        setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 900);
+        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2200);
+        setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 1200);
       } catch (e) {
         progressMessage.textContent = 'Błąd wysyłania';
+        progressMessage.classList.remove('success');
+        progressMessage.classList.add('error');
         setErr('Błąd wysyłania');
-        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2000);
-        setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 900);
+        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2600);
+        setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 1200);
       }
     } finally {
       uploading = false;
@@ -621,6 +634,7 @@
 
   function uploadFileWithProgress(file){
     progressMessage.textContent = '';
+    progressMessage.classList.remove('success','error');
     startIndeterminateProgress();
     return new Promise((res, rej) => {
       const fd = new FormData();
@@ -651,23 +665,28 @@
         if (xhr.status >= 200 && xhr.status < 300) {
           animateTo100();
           progressMessage.textContent = 'Sukces';
+          progressMessage.classList.remove('error');
+          progressMessage.classList.add('success');
           setTimeout(()=>{ progressMessage.textContent = 'Wysłano'; }, 300);
           setTimeout(()=>{ lastProgress = 100; res(json); }, 650);
         } else {
           progressMessage.textContent = 'Błąd';
+          progressMessage.classList.remove('success');
+          progressMessage.classList.add('error');
           lastProgress = 0;
           rej(json);
         }
       };
 
-      xhr.onerror = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci'; lastProgress = 0; rej(new Error('network')); };
-      xhr.ontimeout = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Timeout'; lastProgress = 0; rej(new Error('timeout')); };
+      xhr.onerror = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci'; progressMessage.classList.add('error'); lastProgress = 0; rej(new Error('network')); };
+      xhr.ontimeout = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Timeout'; progressMessage.classList.add('error'); lastProgress = 0; rej(new Error('timeout')); };
 
       try {
         xhr.send(fd);
       } catch (e) {
         stopIndeterminateProgress();
         progressMessage.textContent = 'Błąd wysyłania';
+        progressMessage.classList.add('error');
         lastProgress = 0;
         rej(e);
       }
@@ -684,10 +703,10 @@
       await uploadFileWithProgress(f);
       setOk('Wysłano ✅');
       showToast('Wysłano');
-      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 1200);
+      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2200);
     } catch (e) {
       setErr('Błąd uploadu');
-      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 1600);
+      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2600);
     } finally {
       progressBar.style.width = '0%';
       progressText.textContent = '…';
@@ -888,12 +907,12 @@
       torchSupported = false;
       torchOn = false;
       updateTorchButtonState();
-      showToast('Lampa nieobsługiwana na tym urządzeniu');
+      showMessage('error', 'Lampa nieobsługiwana na tym urządzeniu');
     }
   }
 
   torchBtn.addEventListener('click', async ()=>{
-    if (!torchSupported) { showToast('Lampa nieobsługiwana'); return; }
+    if (!torchSupported) { showMessage('error','Lampa nieobsługiwana'); return; }
     await setTorch(!torchOn);
   });
 
@@ -911,9 +930,3 @@
 </script>
 </body>
 </html>
-
-
-
-
-
-
