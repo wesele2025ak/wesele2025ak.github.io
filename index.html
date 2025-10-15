@@ -700,7 +700,35 @@
       Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`;
   }
 
-  openInBrowserBtn.addEventListener('click', ()=>{ window.open(location.href, '_blank', 'noopener'); });
+  openInBrowserBtn.addEventListener('click', (e) => {
+    const url = location.href;
+    try {
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      if (win) {
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => {
+        try { location.assign(url); } catch (err) {}
+      }, 400);
+    } catch (err) {
+      if (/android/i.test(navigator.userAgent)) {
+        try {
+          const intentUrl = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+          location.href = intentUrl;
+          return;
+        } catch (e) {}
+      }
+      try { location.href = url; } catch (e) {}
+    }
+    setErr('Nie udało się otworzyć zewnętrznej przeglądarki. Otwórz stronę z menu aplikacji lub skopiuj link i wklej w przeglądarce.');
+  });
 
   window.addEventListener('pagehide', ()=>{ if (activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
 
@@ -782,6 +810,7 @@
 </script>
 </body>
 </html>
+
 
 
 
