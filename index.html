@@ -700,13 +700,44 @@
       Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`;
   }
 
-  openInBrowserBtn.addEventListener('click', (e) => {
+  openInBrowserBtn.addEventListener('click', async () => {
     const url = location.href;
+  
+    function showOpenInBrowserInstructions() {
+      inAppBox.style.display = 'block';
+      inAppBox.innerHTML = `
+        <strong>Jak otworzyć w zewnętrznej przeglądarce?</strong>
+        <ol>
+          <li>Użyj menu aplikacji (trzy kropki / udostępnij) i wybierz "Otwórz w przeglądarce".</li>
+          <li>Na Androidzie możesz wybrać "Otwórz w Chrome".</li>
+          <li>Jeśli nic nie pomaga — skopiuj link i wklej go w standardowej przeglądarce.</li>
+        </ol>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="copyLinkBtn">Kopiuj link</button>
+          <button id="tryAgainBtn">Spróbuj ponownie</button>
+        </div>
+      `;
+      const copyBtn = document.getElementById('copyLinkBtn');
+      const tryBtn = document.getElementById('tryAgainBtn');
+      if (copyBtn) copyBtn.addEventListener('click', () => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(() => showToast('Skopiowano link'));
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); showToast('Skopiowano link'); } catch(e){ setErr('Kopiowanie nieudane'); }
+          ta.remove();
+        }
+      });
+      if (tryBtn) tryBtn.addEventListener('click', () => { inAppBox.style.display = 'none'; openInBrowserBtn.click(); });
+    }
+  
     try {
       const win = window.open(url, '_blank', 'noopener,noreferrer');
-      if (win) {
-        return;
-      }
+      if (win) return;
+  
       const a = document.createElement('a');
       a.href = url;
       a.target = '_blank';
@@ -714,20 +745,21 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
+  
       setTimeout(() => {
-        try { location.assign(url); } catch (err) {}
-      }, 400);
+        showOpenInBrowserInstructions();
+      }, 600);
     } catch (err) {
-      if (/android/i.test(navigator.userAgent)) {
-        try {
+      try {
+        if (/android/i.test(navigator.userAgent)) {
           const intentUrl = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
           location.href = intentUrl;
+          setTimeout(() => showOpenInBrowserInstructions(), 700);
           return;
-        } catch (e) {}
-      }
-      try { location.href = url; } catch (e) {}
+        }
+      } catch (e) {}
+      showOpenInBrowserInstructions();
     }
-    setErr('Nie udało się otworzyć zewnętrznej przeglądarki. Otwórz stronę z menu aplikacji lub skopiuj link i wklej w przeglądarce.');
   });
 
   window.addEventListener('pagehide', ()=>{ if (activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
@@ -810,6 +842,7 @@
 </script>
 </body>
 </html>
+
 
 
 
