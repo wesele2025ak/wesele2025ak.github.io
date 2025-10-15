@@ -11,47 +11,58 @@
     --card: #7e9e89;
     --text: #2b2b2b;
     --muted: #6c6a66;
-    --gold: #317848;
-    --gold-strong: #214f30;
-    --gold-soft: #e7cf82;
+
     --green-forest: #317848;
     --green-forest-strong: #214f30;
     --green-forest-soft: #508060;
+
+    --ok: #2aa55a;
+    --err: #d23b3b;
+    --info: #2b6cb0;
+
     --border: #7e9e89;
-    --shadow: 0 6px 18px rgba(184, 150, 40, .08);
-    --overlay: rgba(255, 255, 255, .75);
-    --glass: rgba(255, 255, 255, .55);
-    --ok: #2a5;
-    --err: #d55;
+    --shadow: 0 6px 18px rgba(49, 120, 72, .18);
+    --overlay: rgba(255,255,255,.75);
+    --glass: rgba(255,255,255,.55);
   }
+
   html,body{background:var(--bg); color:var(--text)}
   body{font-family:system-ui, ui-sans-serif, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin:0; padding:16px}
-  .card{color:#ffffff;max-width:900px;margin:0 auto;background:var(--card);border:0px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+
+  .card{
+    color:#ffffff;max-width:900px;margin:0 auto;background:var(--card);
+    border:0px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)
+  }
+
   h1{font-size:1.15rem;margin:0 0 8px; letter-spacing:.2px}
   .muted{color:var(--muted);font-size:.95rem}
   .metaRow{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
   .controlsBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
   button{
     font:inherit;
     background: var(--green-forest-soft);
     color:#ffffff;
-    border:0px solid var(--green-forest-strong);
+    border:0;
     padding:8px 12px;
     border-radius:10px;
     cursor:pointer;
-    box-shadow: 0 3px 10px rgba(199,161,41,.18);
+    box-shadow: 0 3px 10px rgba(49,120,72,.18);
   }
   button:hover{filter:brightness(1.02)}
   button[disabled]{opacity:.6;cursor:not-allowed}
+
   .videoWrap{margin-top:12px;position:relative;border-radius:16px;overflow:hidden;background:#000;min-height:320px;display:none;border:1px solid var(--border)}
   video{width:100%;height:100%;display:block;background:#000;object-fit:cover;transform:none;transition:transform .15s ease}
   video.mirrored{transform:scaleX(-1)}
   .previewImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:5}
+
   .overlays{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none}
-  .control{position:absolute;pointer-events:auto;background:rgba(255,255,255,.55);border:1px solid rgba(199,161,41,.45);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;border-radius:999px;padding:8px;cursor:pointer;color:#1d1606;z-index:7}
+
+  .control{position:absolute;pointer-events:auto;background:rgba(255,255,255,.55);border:1px solid rgba(199,161,41,.45);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;border-radius:999px;padding:8px;cursor:pointer;color:#1d1606;z-index:7;box-shadow:0 8px 22px rgba(199,161,41,.25)}
   .control svg{width:20px;height:20px;display:block}
   .control.small{width:44px;height:44px}
-  .control.big{width:80px;height:80px;background:linear-gradient(180deg,var(--green-forest-soft),var(--green-forest));box-shadow:0 8px 22px rgba(199,161,41,.25); border:1px solid var(--green-forest-strong)}
+  .control.big{width:80px;height:80px;background:linear-gradient(180deg,var(--green-forest-soft),var(--green-forest));border:1px solid var(--green-forest-strong)}
   .control.topRight{top:12px;right:12px}
   .control.topLeft{top:12px;left:12px}
   .control.topLeft.offset{left:64px}
@@ -63,23 +74,45 @@
   .control.rightCenter{top:50%;right:18px;transform:translateY(-50%)}
   .control.hidden{display:none}
   .control.active{background:linear-gradient(180deg,#ffe29c,#ffd36b);color:#111;border-color:rgba(199,161,41,.65)}
-  .hint{margin-top:8px;font-size:.9rem;color:#5a5137}
-  .inApp{margin-top:8px;padding:10px;background:#fffaf2;border:1px solid var(--border);border-radius:10px}
+
+  .hint{margin-top:8px;font-size:.9rem;color:#e9f3ea}
+  .inApp{margin-top:8px;padding:10px;background:#eaf4ed;border:1px solid var(--border);border-radius:10px;color:#13301f}
+
   input[type=file]{position:absolute;left:-9999px}
   .flash{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;background:rgba(255,255,255,0);opacity:0;transition:opacity .12s ease;mix-blend-mode:screen;z-index:9999}
   .flash.do{opacity:0.92;background:white}
-  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;padding:10px 16px;border-radius:12px;background:rgba(29,22,6,.92);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25);font-weight:700;z-index:9999;display:none}
-  .toast.show{display:block;animation:toast-in .22s ease}
-  @keyframes toast-in{from{transform:translateX(-50%) translateY(8px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+
+  .messageBox{
+    position:fixed;left:50%;top:12px;transform:translateX(-50%);
+    z-index:10000;display:none;max-width:min(760px,92vw)
+  }
+  .messageBox.show{display:block;animation:msg-in .18s ease}
+  @keyframes msg-in{from{transform:translateX(-50%) translateY(-6px);opacity:.0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+  .message{
+    display:flex;gap:10px;align-items:flex-start;
+    border-radius:12px;padding:10px 14px;
+    backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%);
+    background:var(--overlay); border:1px solid var(--green-forest-strong);
+    box-shadow: 0 6px 18px rgba(0,0,0,.25); color:#0f1a13; font-weight:700
+  }
+  .message .dot{width:10px;height:10px;border-radius:999px;margin-top:.35em}
+  .message.info{border-color:rgba(43,108,176,.55); color:#0b2748}
+  .message.info .dot{background:var(--info)}
+  .message.success{border-color:rgba(42,165,90,.6); color:#0e3b24}
+  .message.success .dot{background:var(--ok)}
+  .message.error{border-color:rgba(210,59,59,.6); color:#3b0e0e}
+  .message.error .dot{background:var(--err)}
+
   .progressOverlay{position:absolute;top:18px;left:50%;transform:translateX(-50%);width:72%;max-width:720px;z-index:6;pointer-events:none;display:flex;flex-direction:column;gap:10px;align-items:stretch;opacity:0;transition:opacity .15s linear}
   .progressOverlay.visible{opacity:1}
-  .progressWrap{height:16px;background:rgba(255,255,255,.8);border-radius:999px;overflow:hidden;border:1px solid var(--border);flex:1;min-width:140px}
+  .progressWrap{height:16px;background:rgba(255,255,255,.9);border-radius:999px;overflow:hidden;border:1px solid var(--border);flex:1;min-width:140px}
   .progressBar{height:100%;width:0%;background:var(--green-forest);transition:width .12s linear}
   .progressRowInner{display:flex;align-items:center;gap:12px;padding:6px}
-  .progressText{font-size:.95rem;color:#5a5137;min-width:48px;text-align:right}
+  .progressText{font-size:.95rem;color:#13301f;min-width:48px;text-align:right}
   .progressMessage{font-size:1.05rem;text-align:center;font-weight:800}
-  .progressMessage.success{color:#0a5}
-  .progressMessage.error{color:#c22}
+  .progressMessage.success{color:var(--ok)}
+  .progressMessage.error{color:var(--err)}
+
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .hidden{display:none !important}
   .eventInfo{color:#fff; font-weight:800; margin-bottom:6px; text-shadow:0 1px 2px rgba(0,0,0,.25)}
@@ -92,24 +125,19 @@
     -webkit-backdrop-filter: blur(8px) saturate(120%);
     border: 1px solid var(--green-forest-strong);
     box-shadow: 0 8px 22px rgba(199,161,41,0.25);
-    width: 80px;
-    height: 80px;
-    padding: 0;
-    color:#1d1606;
+    width: 80px; height: 80px; padding: 0; color:#1d1606;
   }
-  #captureBtn svg {
-    width: 40px;
-    height: 40px;
-    display: block;
-    margin: 0;
-  }
+  #captureBtn svg { width: 40px; height: 40px; display: block; margin: 0; }
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;padding:10px 16px;border-radius:12px;background:rgba(19,38,27,.92);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25);font-weight:700;z-index:9999;display:none}
+  .toast.show{display:block;animation:toast-in .22s ease}
+  @keyframes toast-in{from{transform:translateX(-50%) translateY(8px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
 </style>
 </head>
 <body>
   <div class="card">
     <div class="eventInfo" id="eventInfo">Sprawdzam token...</div>
     <h1>Zrób zdjęcie - zostanie wysłane automatycznie!</h1>
-    <!-- status box removed -->
     <div style="height:10px"></div>
     <div class="metaRow">
       <div class="controlsBar" id="topControls">
@@ -119,9 +147,11 @@
         <input id="file" type="file" accept="image/*" capture="environment" />
       </div>
     </div>
+
     <div class="videoWrap" id="videoWrap" aria-hidden="true">
       <video id="camVid" autoplay playsinline muted></video>
       <img id="previewImg" class="previewImg" alt="Podgląd zrobionego zdjęcia" />
+
       <div class="overlays" id="overlays">
         <div class="progressOverlay" id="progressOverlay" aria-hidden="true">
           <div class="progressRowInner">
@@ -130,6 +160,7 @@
           </div>
           <div class="progressMessage" id="progressMessage" aria-live="polite"></div>
         </div>
+
         <button class="control topRight small" id="fsBtn" aria-label="Pełny ekran" title="Pełny ekran">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg>
         </button>
@@ -147,11 +178,21 @@
         </button>
       </div>
     </div>
+
     <div class="hint" id="hintBox">Naciśnij "Uruchom aparat", następnie środkowy przycisk, aby zrobić zdjęcie. Możesz przełączać aparaty i wejść w pełny ekran.</div>
     <div class="inApp" id="inAppBox" style="display:none"></div>
   </div>
+
+  <div class="messageBox" id="messageBox" aria-live="polite" aria-atomic="true">
+    <div class="message info" id="message">
+      <div class="dot" aria-hidden="true"></div>
+      <div id="messageText">…</div>
+    </div>
+  </div>
+
   <div class="flash" id="flash"></div>
   <div class="toast" id="toast">Wysłano</div>
+
 <script>
 (function(){
   "use strict";
@@ -175,6 +216,7 @@
   const inAppBox = document.getElementById('inAppBox');
   const flashEl = document.getElementById('flash');
   const toast = document.getElementById('toast');
+
   const fsBtn = document.getElementById('fsBtn');
   const progressOverlay = document.getElementById('progressOverlay');
   const progressBar = document.getElementById('progressBar');
@@ -183,46 +225,44 @@
   const stopBtn = document.getElementById('stopBtn');
   const torchBtn = document.getElementById('torchBtn');
 
-  function showMessage(type, msg, durationMs = 3500){
+  const messageBox = document.getElementById('messageBox');
+  const messageEl  = document.getElementById('message');
+  const messageTxt = document.getElementById('messageText');
+
+  function showMessage(kind = 'info', text = '', durationMs = 5200){
     try {
-      progressOverlay.classList.add('visible');
-      progressMessage.textContent = msg;
-      progressMessage.classList.remove('success','error');
-      if (type === 'success') progressMessage.classList.add('success');
-      if (type === 'error') progressMessage.classList.add('error');
+      messageEl.classList.remove('success','error','info');
+      if (kind !== 'success' && kind !== 'error') kind = 'info';
+      messageEl.classList.add(kind);
+      messageTxt.textContent = text || '';
+      messageBox.classList.add('show');
+
       if (durationMs > 0) {
-        const localToken = Symbol('msg');
-        showMessage._last = localToken;
-        setTimeout(()=>{ if (showMessage._last === localToken) progressOverlay.classList.remove('visible'); }, durationMs);
+        const token = Symbol('msg');
+        showMessage._last = token;
+        setTimeout(()=>{ if (showMessage._last === token) messageBox.classList.remove('show'); }, durationMs);
       }
     } catch(e){}
   }
-  const setOk = (m)=> showMessage('success', m);
-  const setErr = (m)=> showMessage('error', m, 4200);
+  const setOk  = (m)=> showMessage('success', m, 5600);
+  const setErr = (m)=> showMessage('error',   m, 6400);
+  const setInfo= (m)=> showMessage('info',    m, 5200);
 
   if (!eventToken || !t) {
     eventInfo.textContent = 'Brak parametrów ?event= i ?t= w linku — działam w trybie testowym.';
-    setOk('Tryb testowy — możesz przetestować aparat (brak param. event/t).');
+    setInfo('Tryb testowy — możesz przetestować aparat (brak param. event/t).');
   } else {
     eventInfo.textContent = `Wydarzenie: ${eventToken}`;
   }
 
   const memoryStore = {};
   const safeStorage = {
-    get(k){
-      try { return localStorage.getItem(k); } catch (ex) { return memoryStore[k] ?? null; }
-    },
-    set(k,v){
-      try { localStorage.setItem(k,v); } catch (ex) { memoryStore[k] = String(v); }
-    }
+    get(k){ try { return localStorage.getItem(k); } catch (ex) { return memoryStore[k] ?? null; } },
+    set(k,v){ try { localStorage.setItem(k,v); } catch (ex) { memoryStore[k] = String(v); } }
   };
 
   function makeUUID(){
-    try {
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-      }
-    } catch (e) {}
+    try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
     try {
       if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
         const b = new Uint8Array(16);
@@ -234,31 +274,24 @@
       }
     } catch (e) {}
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      const r = Math.random()*16|0, v = c==='x'? r : (r&0x3|0x8);
       return v.toString(16);
     });
   }
 
   const UUID_KEY = 'qrphoto_uuid';
   let uuid = safeStorage.get(UUID_KEY);
-  if (!uuid) {
-    uuid = makeUUID();
-    safeStorage.set(UUID_KEY, uuid);
-  }
+  if (!uuid) { uuid = makeUUID(); safeStorage.set(UUID_KEY, uuid); }
 
   function detectInApp(){
     try {
       const ua = navigator.userAgent || navigator.vendor || '';
       const tests = ['FBAN','FBAV','Instagram','Line','Twitter','LinkedInApp','Vkontakte','Telegram','WhatsApp','TikTok'];
-      for (let i = 0; i < tests.length; i++) {
-        if (ua.indexOf(tests[i]) !== -1) return tests[i];
-      }
+      for (let i=0;i<tests.length;i++){ if (ua.indexOf(tests[i]) !== -1) return tests[i]; }
     } catch (e) {}
     return null;
   }
   const inApp = detectInApp();
-
   if (inApp) {
     inAppBox.style.display = 'block';
     inAppBox.innerHTML = `<strong>Wygląda na wbudowaną przeglądarkę (${inApp}).</strong> Jeśli aparat nie działa, kliknij "Otwórz w przeglądarce".`;
@@ -283,9 +316,7 @@
   function doFlash(){
     try {
       const target = document.fullscreenElement || videoWrap || document.body;
-      if (target && flashEl.parentElement !== target) {
-        target.appendChild(flashEl);
-      }
+      if (target && flashEl.parentElement !== target) target.appendChild(flashEl);
       flashEl.classList.add('do');
       setTimeout(()=> flashEl.classList.remove('do'), 160);
     } catch (e) {}
@@ -299,12 +330,8 @@
 
   async function checkPermissionState(){
     if (!navigator.permissions || !navigator.permissions.query) return null;
-    try {
-      const p = await navigator.permissions.query({ name: 'camera' });
-      return p.state;
-    } catch (e) {
-      return null;
-    }
+    try { const p = await navigator.permissions.query({ name: 'camera' }); return p.state; }
+    catch { return null; }
   }
 
   function startFreezeWatcher(){
@@ -325,11 +352,7 @@
   }
 
   function stopFreezeWatcher(){
-    if (freezeTimer) {
-      clearInterval(freezeTimer);
-      freezeTimer = null;
-      lastVideoTime = 0;
-    }
+    if (freezeTimer) { clearInterval(freezeTimer); freezeTimer = null; lastVideoTime = 0; }
   }
 
   function handleCameraFreeze(){
@@ -347,32 +370,21 @@
       const labelsAvailable = vids.every(d => !!d.label);
       if (labelsAvailable) {
         const needle = facing === 'user' ? ['front','user','face'] : ['back','rear','environment'];
-        for (let i = 0; i < needle.length; i++) {
-          const n = needle[i];
-          const found = vids.find(v => v.label.toLowerCase().indexOf(n) !== -1);
+        for (let i=0;i<needle.length;i++){
+          const found = vids.find(v => v.label.toLowerCase().includes(needle[i]));
           if (found) return found.deviceId;
         }
       }
       return facing === 'user' ? vids[0].deviceId : vids[vids.length - 1].deviceId;
-    } catch (e) {
-      return null;
-    }
+    } catch { return null; }
   }
 
   async function tryGetStream(facing){
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
-    try {
-      return await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ exact:facing }, width:{ ideal:3840 }, height:{ ideal:2160 } }, audio:false });
-    } catch (e1) {}
-    try {
-      return await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:facing }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false });
-    } catch (e2) {}
+    try { return await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ exact:facing }, width:{ ideal:3840 }, height:{ ideal:2160 } }, audio:false }); } catch {}
+    try { return await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:facing }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false }); } catch {}
     const deviceId = await getDeviceIdForFacing(facing);
-    if (deviceId) {
-      try {
-        return await navigator.mediaDevices.getUserMedia({ video:{ deviceId:{ exact:deviceId }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false });
-      } catch (e3) {}
-    }
+    if (deviceId) { try { return await navigator.mediaDevices.getUserMedia({ video:{ deviceId:{ exact:deviceId }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false }); } catch {} }
     return null;
   }
 
@@ -386,21 +398,18 @@
       fileInput.click();
       return;
     }
-    setOk('Proszę o dostęp do aparatu...');
+    setInfo('Proszę o dostęp do aparatu...');
     try {
       stopCamera();
       const stream = await tryGetStream(currentFacing);
-      if (!stream) {
-        providePermissionHelp(new Error('Nie można uzyskać strumienia dla tego aparatu'));
-        return;
-      }
+      if (!stream) { providePermissionHelp(new Error('Nie można uzyskać strumienia dla tego aparatu')); return; }
       activeStream = stream;
       camVid.srcObject = stream;
       camVid.playsInline = true;
       videoWrap.style.display = 'block';
       previewImg.style.display = 'none';
       applyMirrorForFacing();
-      try { await camVid.play(); } catch (e) {}
+      try { await camVid.play(); } catch {}
       setOk('Aparat uruchomiony — naciśnij środkowy przycisk, aby zrobić zdjęcie.');
       hintBox.textContent = 'Naciśnij środkowy przycisk, aby zrobić zdjęcie. Możesz przełączać aparaty i wejść w pełny ekran.';
       startFreezeWatcher();
@@ -410,12 +419,9 @@
         const track = stream.getVideoTracks && stream.getVideoTracks()[0];
         const caps = track && track.getCapabilities ? track.getCapabilities() : null;
         torchSupported = !!(caps && caps.torch);
-      } catch (e) { torchSupported = false; }
+      } catch { torchSupported = false; }
       torchBtn.classList.toggle('hidden', !torchSupported);
-      if (!torchSupported) {
-        torchOn = false;
-        torchBtn.classList.remove('active');
-      }
+      if (!torchSupported) { torchOn = false; torchBtn.classList.remove('active'); }
     } catch (err) {
       providePermissionHelp(err);
     }
@@ -428,14 +434,13 @@
         try {
           const track = activeStream.getVideoTracks && activeStream.getVideoTracks()[0];
           if (track && track.applyConstraints) track.applyConstraints({ advanced: [{ torch: false }] }).catch(()=>{});
-        } catch (e) {}
-        torchOn = false;
-        torchBtn.classList.remove('active');
+        } catch {}
+        torchOn = false; torchBtn.classList.remove('active');
       }
       activeStream.getTracks().forEach(t => t.stop());
       activeStream = null;
     }
-    try { camVid.srcObject = null; } catch (e) {}
+    try { camVid.srcObject = null; } catch {}
     videoWrap.style.display = 'none';
     previewImg.style.display = 'none';
     updateControlsVisibility();
@@ -456,21 +461,13 @@
   }
 
   function rotateCanvas90(srcCanvas, clockwise){
-    const sW = srcCanvas.width;
-    const sH = srcCanvas.height;
+    const sW = srcCanvas.width, sH = srcCanvas.height;
     const dst = document.createElement('canvas');
-    dst.width = sH;
-    dst.height = sW;
+    dst.width = sH; dst.height = sW;
     const ctx = dst.getContext('2d');
-    if (clockwise) {
-      ctx.translate(dst.width, 0);
-      ctx.rotate(Math.PI/2);
-      ctx.drawImage(srcCanvas, 0, 0);
-    } else {
-      ctx.translate(0, dst.height);
-      ctx.rotate(-Math.PI/2);
-      ctx.drawImage(srcCanvas, 0, 0);
-    }
+    if (clockwise) { ctx.translate(dst.width,0); ctx.rotate(Math.PI/2); }
+    else { ctx.translate(0,dst.height); ctx.rotate(-Math.PI/2); }
+    ctx.drawImage(srcCanvas,0,0);
     return dst;
   }
 
@@ -508,10 +505,7 @@
   }
 
   function stopIndeterminateProgress(){
-    if (indeterminateTimer) {
-      clearInterval(indeterminateTimer);
-      indeterminateTimer = null;
-    }
+    if (indeterminateTimer) { clearInterval(indeterminateTimer); indeterminateTimer = null; }
   }
 
   function playShutter(){
@@ -519,35 +513,22 @@
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
       const now = audioCtx.currentTime;
-      const master = audioCtx.createGain();
-      master.gain.value = 0.7;
-      master.connect(audioCtx.destination);
+      const master = audioCtx.createGain(); master.gain.value = 0.7; master.connect(audioCtx.destination);
 
       const click = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * 0.02), audioCtx.sampleRate);
       const d = click.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2 - 1) * Math.pow(1 - i/d.length, 2) * 0.6;
-      const src = audioCtx.createBufferSource();
-      src.buffer = click;
-      const g = audioCtx.createGain();
-      g.gain.setValueAtTime(1, now);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-      src.connect(g);
-      g.connect(master);
-      src.start(now);
-      src.stop(now + 0.08);
+      const src = audioCtx.createBufferSource(); src.buffer = click;
+      const g = audioCtx.createGain(); g.gain.setValueAtTime(1, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      src.connect(g); g.connect(master); src.start(now); src.stop(now + 0.08);
 
-      const osc = audioCtx.createOscillator();
-      const og = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(900, now + 0.02);
+      const osc = audioCtx.createOscillator(); const og = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(900, now + 0.02);
       og.gain.setValueAtTime(0.0001, now + 0.02);
       og.gain.exponentialRampToValueAtTime(0.28, now + 0.025);
       og.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
-      osc.connect(og);
-      og.connect(master);
-      osc.start(now + 0.02);
-      osc.stop(now + 0.09);
-    } catch (e) {}
+      osc.connect(og); og.connect(master); osc.start(now + 0.02); osc.stop(now + 0.09);
+    } catch {}
   }
 
   async function captureBlobViaImageCapture(){
@@ -558,55 +539,33 @@
       if (!ic.takePhoto) throw new Error('no-takephoto');
       const blob = await ic.takePhoto();
       return blob;
-    } catch (e) {
-      throw e;
-    }
+    } catch (e) { throw e; }
   }
 
   async function captureAndUpload(){
     if (uploading) return;
     if (!camVid || camVid.readyState < 2) { setErr('Aparat niegotowy.'); return; }
 
-    lastProgress = 0;
-    setProgress(0);
-
-    uploading = true;
-    captureBtn.disabled = true;
+    lastProgress = 0; setProgress(0);
+    uploading = true; captureBtn.disabled = true;
     let blob = null;
     try {
-      try {
-        blob = await captureBlobViaImageCapture();
-      } catch (e) {
-        blob = null;
-      }
+      try { blob = await captureBlobViaImageCapture(); } catch { blob = null; }
       if (!blob) {
-        const rawW = camVid.videoWidth || 1280;
-        const rawH = camVid.videoHeight || 720;
-        const tmp = document.createElement('canvas');
-        tmp.width = rawW;
-        tmp.height = rawH;
-        const tctx = tmp.getContext('2d');
-        tctx.drawImage(camVid, 0, 0, rawW, rawH);
-        let finalCanvas = tmp;
-        if (needRotateForDevice(rawW, rawH)) finalCanvas = rotateCanvas90(tmp, true);
+        const rawW = camVid.videoWidth || 1280, rawH = camVid.videoHeight || 720;
+        const tmp = document.createElement('canvas'); tmp.width = rawW; tmp.height = rawH;
+        const tctx = tmp.getContext('2d'); tctx.drawImage(camVid, 0, 0, rawW, rawH);
+        let finalCanvas = tmp; if (needRotateForDevice(rawW, rawH)) finalCanvas = rotateCanvas90(tmp, true);
         blob = await new Promise(res => finalCanvas.toBlob(res, 'image/jpeg', 0.98));
       }
-      if (!blob) {
-        setErr('Nie udało się przygotować zdjęcia');
-        uploading = false;
-        captureBtn.disabled = false;
-        return;
-      }
+      if (!blob) { setErr('Nie udało się przygotować zdjęcia'); return; }
 
-      doFlash();
-      playShutter();
+      doFlash(); playShutter();
 
       const url = URL.createObjectURL(blob);
-      previewImg.src = url;
-      previewImg.style.display = 'block';
-      camVid.style.display = 'none';
-      progressOverlay.classList.add('visible');
+      previewImg.src = url; previewImg.style.display = 'block'; camVid.style.display = 'none';
 
+      startIndeterminateProgress();
       try {
         await uploadFileWithProgress(new File([blob], 'photo.jpg', { type: blob.type }));
         setOk('Wysłano ✅');
@@ -616,19 +575,15 @@
         setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 1200);
       } catch (e) {
         progressMessage.textContent = 'Błąd wysyłania';
-        progressMessage.classList.remove('success');
-        progressMessage.classList.add('error');
+        progressMessage.classList.remove('success'); progressMessage.classList.add('error');
         setErr('Błąd wysyłania');
         setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2600);
         setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 1200);
       }
     } finally {
-      uploading = false;
-      captureBtn.disabled = false;
-      progressBar.style.width = '0%';
-      progressText.textContent = '…';
-      stopIndeterminateProgress();
-      lastProgress = 0;
+      uploading = false; captureBtn.disabled = false;
+      progressBar.style.width = '0%'; progressText.textContent = '…';
+      stopIndeterminateProgress(); lastProgress = 0;
     }
   }
 
@@ -661,34 +616,28 @@
       xhr.onload = () => {
         stopIndeterminateProgress();
         let json = {};
-        try { json = JSON.parse(xhr.responseText || '{}'); } catch (err) { json = {}; }
+        try { json = JSON.parse(xhr.responseText || '{}'); } catch { json = {}; }
         if (xhr.status >= 200 && xhr.status < 300) {
           animateTo100();
           progressMessage.textContent = 'Sukces';
-          progressMessage.classList.remove('error');
-          progressMessage.classList.add('success');
+          progressMessage.classList.remove('error'); progressMessage.classList.add('success');
           setTimeout(()=>{ progressMessage.textContent = 'Wysłano'; }, 300);
           setTimeout(()=>{ lastProgress = 100; res(json); }, 650);
         } else {
           progressMessage.textContent = 'Błąd';
-          progressMessage.classList.remove('success');
-          progressMessage.classList.add('error');
-          lastProgress = 0;
-          rej(json);
+          progressMessage.classList.remove('success'); progressMessage.classList.add('error');
+          lastProgress = 0; rej(json);
         }
       };
 
-      xhr.onerror = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci'; progressMessage.classList.add('error'); lastProgress = 0; rej(new Error('network')); };
-      xhr.ontimeout = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Timeout'; progressMessage.classList.add('error'); lastProgress = 0; rej(new Error('timeout')); };
+      xhr.onerror   = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci';    progressMessage.classList.add('error'); lastProgress = 0; rej(new Error('network')); };
+      xhr.ontimeout = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Timeout';       progressMessage.classList.add('error'); lastProgress = 0; rej(new Error('timeout')); };
 
-      try {
-        xhr.send(fd);
-      } catch (e) {
+      try { xhr.send(fd); }
+      catch (e) {
         stopIndeterminateProgress();
-        progressMessage.textContent = 'Błąd wysyłania';
-        progressMessage.classList.add('error');
-        lastProgress = 0;
-        rej(e);
+        progressMessage.textContent = 'Błąd wysyłania'; progressMessage.classList.add('error');
+        lastProgress = 0; rej(e);
       }
     });
   }
@@ -696,22 +645,18 @@
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files && fileInput.files[0];
     if (!f) { setErr('Brak pliku'); return; }
-    lastProgress = 0;
-    setProgress(0);
-    setOk('Wybrano plik — wysyłam...');
+    lastProgress = 0; setProgress(0);
+    setInfo('Wybrano plik — wysyłam...');
     try {
       await uploadFileWithProgress(f);
-      setOk('Wysłano ✅');
-      showToast('Wysłano');
+      setOk('Wysłano ✅'); showToast('Wysłano');
       setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2200);
-    } catch (e) {
+    } catch {
       setErr('Błąd uploadu');
       setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; lastProgress = 0; }, 2600);
     } finally {
-      progressBar.style.width = '0%';
-      progressText.textContent = '…';
-      stopIndeterminateProgress();
-      lastProgress = 0;
+      progressBar.style.width = '0%'; progressText.textContent = '…';
+      stopIndeterminateProgress(); lastProgress = 0;
     }
   });
 
@@ -722,27 +667,22 @@
   switchBtn.addEventListener('click', async () => {
     if (switching) return;
     switching = true;
-    try {
-      currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
-      await startCamera();
-      applyMirrorForFacing();
-    } finally {
-      switching = false;
-    }
+    try { currentFacing = currentFacing === 'environment' ? 'user' : 'environment'; await startCamera(); applyMirrorForFacing(); }
+    finally { switching = false; }
   });
 
   retryPermBtn.addEventListener('click', async () => {
-    setOk('Sprawdzam stan uprawnień...');
+    setInfo('Sprawdzam stan uprawnień...');
     const state = await checkPermissionState();
     if (state === 'granted') { setOk('Uprawnienia przyznane — uruchamiam aparat...'); await startCamera(); return; }
-    if (state === 'prompt' || state === null) { setOk('Spróbuję ponownie poprosić o dostęp...'); await startCamera(); return; }
-    if (state === 'denied') { setErr('Uprawnienie zablokowane. Zobacz instrukcje w polu poniżej.'); showPermissionInstructions(); return; }
+    if (state === 'prompt' || state === null) { setInfo('Spróbuję ponownie poprosić o dostęp...'); await startCamera(); return; }
+    if (state === 'denied') { setErr('Uprawnienie zablokowane. Zobacz instrukcje poniżej.'); showPermissionInstructions(); return; }
     setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub otwórz w innej przeglądarce.');
   });
 
   function providePermissionHelp(err){
     const msg = err && err.name ? err.name : String(err);
-    setErr('Dostęp do aparatu odrzucony lub zablokowany: ' + msg + '\nZobacz instrukcje poniżej.');
+    setErr('Dostęp do aparatu odrzucony lub zablokowany: ' + msg + ' — zobacz instrukcje poniżej.');
     showPermissionInstructions();
   }
 
@@ -763,17 +703,7 @@
 
   openInBrowserBtn.addEventListener('click', async () => {
     const url = location.href;
-
-    async function tryNativeShare(){
-      try{
-        if (navigator.share) {
-          await navigator.share({ title: document.title, url });
-          return true;
-        }
-      }catch(e){}
-      return false;
-    }
-
+    async function tryNativeShare(){ try{ if (navigator.share) { await navigator.share({ title: document.title, url }); return true; } }catch{} return false; }
     function fallbackCopyUI() {
       inAppBox.style.display = 'block';
       inAppBox.innerHTML = `
@@ -794,11 +724,8 @@
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(url).then(() => showToast('Skopiowano link'));
         } else {
-          const ta = document.createElement('textarea');
-          ta.value = url;
-          document.body.appendChild(ta);
-          ta.select();
-          try { document.execCommand('copy'); showToast('Skopiowano link'); } catch(e){ setErr('Kopiowanie nieudane'); }
+          const ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta);
+          ta.select(); try { document.execCommand('copy'); showToast('Skopiowano link'); } catch{ setErr('Kopiowanie nieudane'); }
           ta.remove();
         }
       });
@@ -807,50 +734,28 @@
 
     try {
       if (await tryNativeShare()) return;
-
-      const win = window.open(url, '_blank', 'noopener,noreferrer');
-      if (win) return;
-
-      if (isAndroid()) {
-        const intentUrl = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
-        location.href = intentUrl;
-        setTimeout(() => fallbackCopyUI(), 700);
-        return;
-      }
-
+      const win = window.open(url, '_blank', 'noopener,noreferrer'); if (win) return;
+      if (isAndroid()) { const intentUrl = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'; location.href = intentUrl; setTimeout(() => fallbackCopyUI(), 700); return; }
       if (isIOS()) {
         const chromeUrl = 'googlechrome://' + url.replace(/^https?:\/\//, '');
         const firefoxUrl = 'firefox://open-url?url=' + encodeURIComponent(url);
         const edgeUrl = 'microsoft-edge-' + url.replace(/^https?:\/\//, 'https://');
-
         let tried = false;
-        const tryOpen = (u) => {
-          try {
-            tried = true;
-            window.location.href = u;
-          } catch(e){}
-        };
-
+        const tryOpen = (u) => { try { tried = true; window.location.href = u; } catch{} };
         tryOpen(chromeUrl);
         setTimeout(()=> tryOpen(firefoxUrl), 350);
         setTimeout(()=> tryOpen(edgeUrl), 700);
-        setTimeout(()=> { if (tried) return; fallbackCopyUI(); }, 1000);
+        setTimeout(()=> { if (!tried) fallbackCopyUI(); }, 1000);
         return;
       }
-
       fallbackCopyUI();
-    } catch (err) {
-      fallbackCopyUI();
-    }
+    } catch { fallbackCopyUI(); }
   });
 
   window.addEventListener('pagehide', ()=>{ if (activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
 
   fsBtn.addEventListener('click', async ()=>{
-    try {
-      if (!document.fullscreenElement) await videoWrap.requestFullscreen();
-      else await document.exitFullscreen();
-    } catch (e) {}
+    try { if (!document.fullscreenElement) await videoWrap.requestFullscreen(); else await document.exitFullscreen(); } catch {}
   });
 
   document.addEventListener('fullscreenchange', ()=> {
@@ -860,14 +765,14 @@
       } else {
         if (flashEl.parentElement !== document.body) document.body.appendChild(flashEl);
       }
-    } catch (e) {}
+    } catch {}
   });
 
   function getOrientationAngle(){
     try {
       if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
       if (typeof window.orientation === 'number') return (window.orientation + 360) % 360;
-    } catch (e) {}
+    } catch {}
     return 0;
   }
 
@@ -881,12 +786,7 @@
     else captureBtn.classList.add(window.innerWidth > window.innerHeight ? 'rightCenter' : 'bottomCenter');
   }
 
-  try {
-    if (screen.orientation && screen.orientation.addEventListener) {
-      screen.orientation.addEventListener('change', ()=>{ updateCapturePosition(); });
-    }
-  } catch (e) {}
-
+  try { if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', ()=>{ updateCapturePosition(); }); } catch {}
   window.addEventListener('orientationchange', ()=>{ setTimeout(()=> updateCapturePosition(), 120); });
 
   function updateTorchButtonState(){
@@ -901,12 +801,9 @@
       const track = activeStream.getVideoTracks && activeStream.getVideoTracks()[0];
       if (!track || !track.applyConstraints) throw new Error('no-track');
       await track.applyConstraints({ advanced: [{ torch: !!on }] });
-      torchOn = !!on;
-      updateTorchButtonState();
-    } catch (e) {
-      torchSupported = false;
-      torchOn = false;
-      updateTorchButtonState();
+      torchOn = !!on; updateTorchButtonState();
+    } catch {
+      torchSupported = false; torchOn = false; updateTorchButtonState();
       showMessage('error', 'Lampa nieobsługiwana na tym urządzeniu');
     }
   }
@@ -916,18 +813,14 @@
     await setTorch(!torchOn);
   });
 
-  function applyMirrorOnResize(){
-    applyMirrorForFacing();
-  }
+  function applyMirrorOnResize(){ applyMirrorForFacing(); }
   window.addEventListener('resize', applyMirrorOnResize);
 
   updateControlsVisibility();
   updateCapturePosition();
   updateTorchButtonState();
   applyMirrorForFacing();
-
 })();
 </script>
 </body>
 </html>
-
