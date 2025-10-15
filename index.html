@@ -97,10 +97,12 @@
 <script>
 (function(){
   "use strict";
+
   const WORKER_URL = 'https://wesele-worker.wesele2025ak.workers.dev/upload';
   const qs = new URLSearchParams(location.search);
   const eventToken = qs.get('event') || '';
   const t = qs.get('t') || '';
+
   const statusBox = document.getElementById('statusBox');
   const eventInfo = document.getElementById('eventInfo');
   const openBtn = document.getElementById('openBtn');
@@ -122,20 +124,78 @@
   const progressText = document.getElementById('progressText');
   const progressMessage = document.getElementById('progressMessage');
   const stopBtn = document.getElementById('stopBtn');
+
   function setOk(m){ statusBox.classList.remove('err'); statusBox.classList.add('ok'); statusBox.textContent = m; }
   function setErr(m){ statusBox.classList.remove('ok'); statusBox.classList.add('err'); statusBox.textContent = m; }
-  if(!eventToken || !t){ setErr('Brak parametrów ?event= i ?t= w linku. Użyj prawidłowego QR.'); } else { eventInfo.textContent = `Wydarzenie: ${eventToken}`; }
+
+  if (!eventToken || !t) {
+    eventInfo.textContent = 'Brak parametrów ?event= i ?t= w linku — działam w trybie testowym.';
+    setOk('Tryb testowy — możesz przetestować aparat (brak param. event/t).');
+  } else {
+    eventInfo.textContent = `Wydarzenie: ${eventToken}`;
+  }
+
   const memoryStore = {};
-  const safeStorage = { get(k){ try{ return localStorage.getItem(k)}catch(e){return memoryStore[k]??null}}, set(k,v){ try{ localStorage.setItem(k,v)}catch(e){ memoryStore[k]=String(v)}}};
-  function makeUUID(){ if (typeof crypto !== 'undefined' && crypto.randomUUID) try{ return crypto.randomUUID(); } catch(e){} if (typeof crypto !== 'undefined' && crypto.getRandomValues){ const b=new Uint8Array(16);crypto.getRandomValues(b);b[6]=(b[6]&0x0f)|0x40;b[8]=(b[8]&0x3f)|0x80;const h=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}` } return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
+  const safeStorage = {
+    get(k){
+      try { return localStorage.getItem(k); } catch (ex) { return memoryStore[k] ?? null; }
+    },
+    set(k,v){
+      try { localStorage.setItem(k,v); } catch (ex) { memoryStore[k] = String(v); }
+    }
+  };
+
+  function makeUUID(){
+    try {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+    } catch (e) {}
+    try {
+      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        const b = new Uint8Array(16);
+        crypto.getRandomValues(b);
+        b[6] = (b[6] & 0x0f) | 0x40;
+        b[8] = (b[8] & 0x3f) | 0x80;
+        const h = [...b].map(x => x.toString(16).padStart(2,'0')).join('');
+        return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+      }
+    } catch (e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   const UUID_KEY = 'qrphoto_uuid';
   let uuid = safeStorage.get(UUID_KEY);
-  if(!uuid){ uuid = makeUUID(); safeStorage.set(UUID_KEY, uuid); }
-  function detectInApp(){ const ua = navigator.userAgent || navigator.vendor || ''; const tests = ['FBAN','FBAV','Instagram','Line','Twitter','LinkedInApp','Vkontakte','Telegram','WhatsApp']; for(const t of tests) if(ua.indexOf(t)!==-1) return t; return null; }
+  if (!uuid) {
+    uuid = makeUUID();
+    safeStorage.set(UUID_KEY, uuid);
+  }
+
+  function detectInApp(){
+    try {
+      const ua = navigator.userAgent || navigator.vendor || '';
+      const tests = ['FBAN','FBAV','Instagram','Line','Twitter','LinkedInApp','Vkontakte','Telegram','WhatsApp'];
+      for (let i = 0; i < tests.length; i++) {
+        if (ua.indexOf(tests[i]) !== -1) return tests[i];
+      }
+    } catch (e) {}
+    return null;
+  }
+
   const inApp = detectInApp();
-  if(inApp){ inAppBox.style.display='block'; inAppBox.innerHTML = `<strong>Wygląda na wbudowaną przeglądarkę (${inApp}).</strong> Jeśli aparat nie działa, kliknij "Otwórz w przeglądarce".`; openInBrowserBtn.style.display='inline-block'; }
-  window.addEventListener('error',(e)=> setErr('Błąd skryptu: '+(e.message||'nieznany')));
-  window.addEventListener('unhandledrejection',(e)=> setErr('Błąd obietnicy: '+(e.reason && e.reason.message || 'nieznany')));
+  if (inApp) {
+    inAppBox.style.display = 'block';
+    inAppBox.innerHTML = `<strong>Wygląda na wbudowaną przeglądarkę (${inApp}).</strong> Jeśli aparat nie działa, kliknij "Otwórz w przeglądarce".`;
+    openInBrowserBtn.style.display = 'inline-block';
+  }
+
+  window.addEventListener('error', (e) => { setErr('Błąd skryptu: ' + (e.message || 'nieznany')); });
+  window.addEventListener('unhandledrejection', (e) => { setErr('Błąd obietnicy: ' + ((e && e.reason && e.reason.message) || 'nieznany')); });
+
   let activeStream = null;
   let uploading = false;
   let currentFacing = 'environment';
@@ -143,53 +203,496 @@
   let freezeTimer = null;
   let lastVideoTime = 0;
   let lastProgress = 0;
-  function doFlash(){ try{ const target = document.fullscreenElement || videoWrap; if(target && flashEl.parentElement !== target){ target.appendChild(flashEl); } flashEl.classList.add('do'); setTimeout(()=> flashEl.classList.remove('do'), 160); }catch(e){} }
-  function showToast(m){ toast.textContent = m; toast.classList.add('show'); setTimeout(()=> toast.classList.remove('show'), 2200); }
-  async function checkPermissionState(){ if(!navigator.permissions || !navigator.permissions.query) return null; try{ const p = await navigator.permissions.query({ name: 'camera' }); return p.state; } catch(e){ return null; } }
-  function startFreezeWatcher(){ lastVideoTime = camVid.currentTime || 0; if(freezeTimer) clearInterval(freezeTimer); freezeTimer = setInterval(()=>{ const now = camVid.currentTime || 0; if(now === lastVideoTime){ if(typeof lastVideoTime === 'number'){ lastVideoTime = { frozenSince: Date.now(), last: lastVideoTime }; } else if(lastVideoTime && (Date.now() - lastVideoTime.frozenSince) > 1500){ handleCameraFreeze(); } } else { lastVideoTime = now; } }, 500); }
-  function stopFreezeWatcher(){ if(freezeTimer){ clearInterval(freezeTimer); freezeTimer = null; lastVideoTime = 0; } }
-  function handleCameraFreeze(){ stopCamera(); setErr('Podgląd aparatu uległ zacięciu — podgląd wyłączony. Użyj przycisku aby ponownie uruchomić aparat.'); videoWrap.style.display = 'none'; updateControlsVisibility(); }
-  async function getDeviceIdForFacing(facing){ try{ const devices = await navigator.mediaDevices.enumerateDevices(); const vids = devices.filter(d=>d.kind==='videoinput'); if(!vids.length) return null; const labelsAvailable = vids.every(d=>!!d.label); if(labelsAvailable){ const needle = facing === 'user' ? ['front','user','face'] : ['back','rear','environment']; for(const n of needle){ const found = vids.find(v=>v.label.toLowerCase().indexOf(n)!==-1); if(found) return found.deviceId; } } return facing === 'user' ? vids[0].deviceId : vids[vids.length-1].deviceId; }catch(e){ return null; } }
-  async function tryGetStream(facing){ if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null; try{ return await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ exact:facing }, width:{ ideal:3840 }, height:{ ideal:2160 } }, audio:false }); }catch(e1){} try{ return await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:facing }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false }); }catch(e2){} const deviceId = await getDeviceIdForFacing(facing); if(deviceId){ try{ return await navigator.mediaDevices.getUserMedia({ video:{ deviceId:{ exact:deviceId }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false }); }catch(e3){} } return null; }
-  async function startCamera(){ if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ setErr('getUserMedia niedostępny (webview lub stara przeglądarka).'); fileInput.click(); return; } setOk('Proszę o dostęp do aparatu...'); try{ stopCamera(); const stream = await tryGetStream(currentFacing); if(!stream){ providePermissionHelp(new Error('Nie można uzyskać strumienia dla tego aparatu')); return; } activeStream = stream; camVid.srcObject = stream; camVid.playsInline = true; videoWrap.style.display = 'block'; previewImg.style.display = 'none'; await camVid.play().catch(()=>{}); setOk('Aparat uruchomiony — naciśnij środkowy przycisk, aby zrobić zdjęcie.'); hintBox.textContent = 'Naciśnij środkowy przycisk, aby zrobić zdjęcie. Możesz przełączać aparaty i wejść w pełny ekran.'; startFreezeWatcher(); updateControlsVisibility(); updateCapturePosition(); }catch(err){ providePermissionHelp(err); } }
-  function stopCamera(){ stopFreezeWatcher(); if(activeStream){ activeStream.getTracks().forEach(t=>t.stop()); activeStream = null; } try{ camVid.srcObject = null; }catch(e){} videoWrap.style.display = 'none'; previewImg.style.display = 'none'; updateControlsVisibility(); }
-  function updateControlsVisibility(){ const running = !!activeStream; openBtn.style.display = running ? 'none' : 'inline-block'; retryPermBtn.style.display = running ? 'none' : 'inline-block'; stopBtn.classList.toggle('hidden', !running); }
-  function needRotateForDevice(origW, origH){ const deviceLandscape = window.innerWidth > window.innerHeight; const videoLandscape = origW > origH; return deviceLandscape !== videoLandscape; }
-  function rotateCanvas90(srcCanvas, clockwise){ const sW = srcCanvas.width; const sH = srcCanvas.height; const dst = document.createElement('canvas'); dst.width = sH; dst.height = sW; const ctx = dst.getContext('2d'); if(clockwise){ ctx.translate(dst.width,0); ctx.rotate(Math.PI/2); ctx.drawImage(srcCanvas,0,0); } else { ctx.translate(0,dst.height); ctx.rotate(-Math.PI/2); ctx.drawImage(srcCanvas,0,0); } return dst; }
   let indeterminateTimer = null;
-  function setProgress(p){ p = Math.max(0, Math.min(100, Math.round(p))); if(p < lastProgress) return; lastProgress = p; progressBar.style.width = p + '%'; progressText.textContent = p + '%'; }
-  function animateTo100(){ const start = lastProgress; const duration = Math.max(240, (100 - start) * 6); const startTime = performance.now(); function step(now){ const t = Math.min(1, (now - startTime)/duration); const val = Math.round(start + (100 - start) * t); setProgress(val); if(t < 1) requestAnimationFrame(step); } requestAnimationFrame(step); }
-  function startIndeterminateProgress(){ stopIndeterminateProgress(); progressOverlay.classList.add('visible'); let pct = Math.max(6, lastProgress || 8); setProgress(pct); indeterminateTimer = setInterval(()=>{ pct = pct + (Math.random() * 4 + 1.5); if(pct > 88) pct = 60 + Math.random() * 12; setProgress(Math.min(90, Math.round(pct))); }, 240); }
-  function stopIndeterminateProgress(){ if(indeterminateTimer){ clearInterval(indeterminateTimer); indeterminateTimer = null; } }
   let audioCtx = null;
-  function playShutter(){ try{ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if(audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{}); const now = audioCtx.currentTime; const master = audioCtx.createGain(); master.gain.value = 0.7; master.connect(audioCtx.destination); const click = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.02, audioCtx.sampleRate); const d = click.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 2) * 0.6; const src = audioCtx.createBufferSource(); src.buffer = click; const g = audioCtx.createGain(); g.gain.setValueAtTime(1, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.08); src.connect(g); g.connect(master); src.start(now); src.stop(now + 0.08); const osc = audioCtx.createOscillator(); const og = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(900, now + 0.02); og.gain.setValueAtTime(0.0001, now + 0.02); og.gain.exponentialRampToValueAtTime(0.28, now + 0.025); og.gain.exponentialRampToValueAtTime(0.0001, now + 0.09); osc.connect(og); og.connect(master); osc.start(now + 0.02); osc.stop(now + 0.09); }catch(e){} }
-  async function captureBlobViaImageCapture(){ try{ const track = activeStream && activeStream.getVideoTracks && activeStream.getVideoTracks()[0]; if(!track || typeof ImageCapture === 'undefined') throw new Error('no-imagecapture'); const ic = new ImageCapture(track); if(!ic.takePhoto) throw new Error('no-takephoto'); const blob = await ic.takePhoto(); return blob; }catch(e){ throw e; } }
-  async function captureAndUpload(){ if(uploading) return; if(!camVid || camVid.readyState < 2){ setErr('Aparat niegotowy.'); return; } uploading = true; captureBtn.disabled = true; let blob = null; try{ try{ blob = await captureBlobViaImageCapture(); }catch(e){} if(!blob){ const rawW = camVid.videoWidth || 1280; const rawH = camVid.videoHeight || 720; const tmp = document.createElement('canvas'); tmp.width = rawW; tmp.height = rawH; const tctx = tmp.getContext('2d'); tctx.drawImage(camVid, 0, 0, rawW, rawH); let finalCanvas = tmp; if(needRotateForDevice(rawW, rawH)) finalCanvas = rotateCanvas90(tmp, true); blob = await new Promise(res=> finalCanvas.toBlob(res,'image/jpeg',0.98)); } if(!blob){ setErr('Nie udało się przygotować zdjęcia'); uploading=false; captureBtn.disabled=false; return; } doFlash(); playShutter(); const url = URL.createObjectURL(blob); previewImg.src = url; previewImg.style.display = 'block'; camVid.style.display = 'none'; progressOverlay.classList.add('visible'); try{ await uploadFileWithProgress(new File([blob],'photo.jpg',{type:blob.type})); setOk('Wysłano ✅'); progressMessage.textContent = 'Wysłano'; showToast('Wysłano'); animateTo100(); setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1100); setTimeout(()=>{ if(previewImg.src){ URL.revokeObjectURL(previewImg.src); } previewImg.style.display='none'; camVid.style.display='block'; }, 900); }catch(e){ progressMessage.textContent = 'Błąd wysyłania'; setErr('Błąd wysyłania'); setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 2000); setTimeout(()=>{ if(previewImg.src){ URL.revokeObjectURL(previewImg.src); } previewImg.style.display='none'; camVid.style.display='block'; }, 900); }finally{ uploading = false; captureBtn.disabled = false; progressBar.style.width = '0%'; progressText.textContent = '…'; stopIndeterminateProgress(); } }
-  function uploadFileWithProgress(file){ progressMessage.textContent = ''; startIndeterminateProgress(); return new Promise((res, rej)=>{ const fd = new FormData(); fd.append('file', file, file.name || 'photo.jpg'); fd.append('event', eventToken); fd.append('uuid', uuid); fd.append('t', t); const xhr = new XMLHttpRequest(); xhr.open('POST', WORKER_URL, true); xhr.timeout = 60000; let seenReal = false; xhr.upload.onprogress = (e)=>{ if(e.lengthComputable){ if(!seenReal){ seenReal = true; stopIndeterminateProgress(); } const pct = Math.round((e.loaded / e.total) * 100); setProgress(pct); } else { if(!indeterminateTimer) startIndeterminateProgress(); } }; xhr.onload = ()=>{ stopIndeterminateProgress(); let json = {}; try{ json = JSON.parse(xhr.responseText || '{}'); }catch(e){} if(xhr.status>=200 && xhr.status<300){ animateTo100(); progressMessage.textContent = 'Sukces'; setTimeout(()=>{ progressMessage.textContent = 'Wysłano'; }, 300); setTimeout(()=>{ res(json); }, 650); } else { progressMessage.textContent = 'Błąd'; rej(json); } }; xhr.onerror = ()=>{ stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci'; rej(new Error('network')); }; xhr.ontimeout = ()=>{ stopIndeterminateProgress(); progressMessage.textContent = 'Timeout'; rej(new Error('timeout')); }; try{ xhr.send(fd); }catch(e){ stopIndeterminateProgress(); progressMessage.textContent = 'Błąd wysyłania'; rej(e); } }); }
-  fileInput.addEventListener('change', async ()=>{ const f = fileInput.files && fileInput.files[0]; if(!f){ setErr('Brak pliku'); return; } setOk('Wybrano plik — wysyłam...'); try{ await uploadFileWithProgress(f); setOk('Wysłano ✅'); showToast('Wysłano'); setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1200); }catch(e){ setErr('Błąd uploadu'); setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1600); }finally{ progressBar.style.width='0%'; progressText.textContent='…'; stopIndeterminateProgress(); } });
-  openBtn.addEventListener('click', async ()=>{ await startCamera(); });
+
+  function doFlash(){
+    try {
+      const target = document.fullscreenElement || videoWrap || document.body;
+      if (target && flashEl.parentElement !== target) {
+        target.appendChild(flashEl);
+      }
+      flashEl.classList.add('do');
+      setTimeout(()=> flashEl.classList.remove('do'), 160);
+    } catch (e) {}
+  }
+
+  function showToast(m){
+    toast.textContent = m;
+    toast.classList.add('show');
+    setTimeout(()=> toast.classList.remove('show'), 2200);
+  }
+
+  async function checkPermissionState(){
+    if (!navigator.permissions || !navigator.permissions.query) return null;
+    try {
+      const p = await navigator.permissions.query({ name: 'camera' });
+      return p.state;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function startFreezeWatcher(){
+    lastVideoTime = camVid.currentTime || 0;
+    if (freezeTimer) clearInterval(freezeTimer);
+    freezeTimer = setInterval(()=>{
+      const now = camVid.currentTime || 0;
+      if (now === lastVideoTime) {
+        if (typeof lastVideoTime === 'number') {
+          lastVideoTime = { frozenSince: Date.now(), last: lastVideoTime };
+        } else if (lastVideoTime && (Date.now() - lastVideoTime.frozenSince) > 1500) {
+          handleCameraFreeze();
+        }
+      } else {
+        lastVideoTime = now;
+      }
+    }, 500);
+  }
+
+  function stopFreezeWatcher(){
+    if (freezeTimer) {
+      clearInterval(freezeTimer);
+      freezeTimer = null;
+      lastVideoTime = 0;
+    }
+  }
+
+  function handleCameraFreeze(){
+    stopCamera();
+    setErr('Podgląd aparatu uległ zacięciu — podgląd wyłączony. Użyj przycisku aby ponownie uruchomić aparat.');
+    videoWrap.style.display = 'none';
+    updateControlsVisibility();
+  }
+
+  async function getDeviceIdForFacing(facing){
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const vids = devices.filter(d => d.kind === 'videoinput');
+      if (!vids.length) return null;
+      const labelsAvailable = vids.every(d => !!d.label);
+      if (labelsAvailable) {
+        const needle = facing === 'user' ? ['front','user','face'] : ['back','rear','environment'];
+        for (let i = 0; i < needle.length; i++) {
+          const n = needle[i];
+          const found = vids.find(v => v.label.toLowerCase().indexOf(n) !== -1);
+          if (found) return found.deviceId;
+        }
+      }
+      return facing === 'user' ? vids[0].deviceId : vids[vids.length - 1].deviceId;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function tryGetStream(facing){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+    try {
+      return await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ exact:facing }, width:{ ideal:3840 }, height:{ ideal:2160 } }, audio:false });
+    } catch (e1) {}
+    try {
+      return await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:facing }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false });
+    } catch (e2) {}
+    const deviceId = await getDeviceIdForFacing(facing);
+    if (deviceId) {
+      try {
+        return await navigator.mediaDevices.getUserMedia({ video:{ deviceId:{ exact:deviceId }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false });
+      } catch (e3) {}
+    }
+    return null;
+  }
+
+  async function startCamera(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErr('getUserMedia niedostępny (webview lub stara przeglądarka).');
+      fileInput.click();
+      return;
+    }
+    setOk('Proszę o dostęp do aparatu...');
+    try {
+      stopCamera();
+      const stream = await tryGetStream(currentFacing);
+      if (!stream) {
+        providePermissionHelp(new Error('Nie można uzyskać strumienia dla tego aparatu'));
+        return;
+      }
+      activeStream = stream;
+      camVid.srcObject = stream;
+      camVid.playsInline = true;
+      videoWrap.style.display = 'block';
+      previewImg.style.display = 'none';
+      try { await camVid.play(); } catch (e) {}
+      setOk('Aparat uruchomiony — naciśnij środkowy przycisk, aby zrobić zdjęcie.');
+      hintBox.textContent = 'Naciśnij środkowy przycisk, aby zrobić zdjęcie. Możesz przełączać aparaty i wejść w pełny ekran.';
+      startFreezeWatcher();
+      updateControlsVisibility();
+      updateCapturePosition();
+    } catch (err) {
+      providePermissionHelp(err);
+    }
+  }
+
+  function stopCamera(){
+    stopFreezeWatcher();
+    if (activeStream) {
+      activeStream.getTracks().forEach(t => t.stop());
+      activeStream = null;
+    }
+    try { camVid.srcObject = null; } catch (e) {}
+    videoWrap.style.display = 'none';
+    previewImg.style.display = 'none';
+    updateControlsVisibility();
+  }
+
+  function updateControlsVisibility(){
+    const running = !!activeStream;
+    openBtn.style.display = running ? 'none' : 'inline-block';
+    retryPermBtn.style.display = running ? 'none' : 'inline-block';
+    stopBtn.classList.toggle('hidden', !running);
+  }
+
+  function needRotateForDevice(origW, origH){
+    const deviceLandscape = window.innerWidth > window.innerHeight;
+    const videoLandscape = origW > origH;
+    return deviceLandscape !== videoLandscape;
+  }
+
+  function rotateCanvas90(srcCanvas, clockwise){
+    const sW = srcCanvas.width;
+    const sH = srcCanvas.height;
+    const dst = document.createElement('canvas');
+    dst.width = sH;
+    dst.height = sW;
+    const ctx = dst.getContext('2d');
+    if (clockwise) {
+      ctx.translate(dst.width, 0);
+      ctx.rotate(Math.PI/2);
+      ctx.drawImage(srcCanvas, 0, 0);
+    } else {
+      ctx.translate(0, dst.height);
+      ctx.rotate(-Math.PI/2);
+      ctx.drawImage(srcCanvas, 0, 0);
+    }
+    return dst;
+  }
+
+  function setProgress(p){
+    p = Math.max(0, Math.min(100, Math.round(p)));
+    if (p < lastProgress) return;
+    lastProgress = p;
+    progressBar.style.width = p + '%';
+    progressText.textContent = p + '%';
+  }
+
+  function animateTo100(){
+    const start = lastProgress;
+    const duration = Math.max(240, (100 - start) * 6);
+    const startTime = performance.now();
+    function step(now){
+      const t = Math.min(1, (now - startTime) / duration);
+      const val = Math.round(start + (100 - start) * t);
+      setProgress(val);
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function startIndeterminateProgress(){
+    stopIndeterminateProgress();
+    progressOverlay.classList.add('visible');
+    let pct = Math.max(6, lastProgress || 8);
+    setProgress(pct);
+    indeterminateTimer = setInterval(()=>{
+      pct = pct + (Math.random() * 4 + 1.5);
+      if (pct > 88) pct = 60 + Math.random() * 12;
+      setProgress(Math.min(90, Math.round(pct)));
+    }, 240);
+  }
+
+  function stopIndeterminateProgress(){
+    if (indeterminateTimer) {
+      clearInterval(indeterminateTimer);
+      indeterminateTimer = null;
+    }
+  }
+
+  function playShutter(){
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+      const now = audioCtx.currentTime;
+      const master = audioCtx.createGain();
+      master.gain.value = 0.7;
+      master.connect(audioCtx.destination);
+
+      const click = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * 0.02), audioCtx.sampleRate);
+      const d = click.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2 - 1) * Math.pow(1 - i/d.length, 2) * 0.6;
+      const src = audioCtx.createBufferSource();
+      src.buffer = click;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(1, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      src.connect(g);
+      g.connect(master);
+      src.start(now);
+      src.stop(now + 0.08);
+
+      const osc = audioCtx.createOscillator();
+      const og = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(900, now + 0.02);
+      og.gain.setValueAtTime(0.0001, now + 0.02);
+      og.gain.exponentialRampToValueAtTime(0.28, now + 0.025);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      osc.connect(og);
+      og.connect(master);
+      osc.start(now + 0.02);
+      osc.stop(now + 0.09);
+    } catch (e) {}
+  }
+
+  async function captureBlobViaImageCapture(){
+    try {
+      const track = activeStream && activeStream.getVideoTracks && activeStream.getVideoTracks()[0];
+      if (!track || typeof ImageCapture === 'undefined') throw new Error('no-imagecapture');
+      const ic = new ImageCapture(track);
+      if (!ic.takePhoto) throw new Error('no-takephoto');
+      const blob = await ic.takePhoto();
+      return blob;
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  async function captureAndUpload(){
+    if (uploading) return;
+    if (!camVid || camVid.readyState < 2) { setErr('Aparat niegotowy.'); return; }
+    uploading = true;
+    captureBtn.disabled = true;
+    let blob = null;
+    try {
+      try {
+        blob = await captureBlobViaImageCapture();
+      } catch (e) {
+        blob = null;
+      }
+      if (!blob) {
+        const rawW = camVid.videoWidth || 1280;
+        const rawH = camVid.videoHeight || 720;
+        const tmp = document.createElement('canvas');
+        tmp.width = rawW;
+        tmp.height = rawH;
+        const tctx = tmp.getContext('2d');
+        tctx.drawImage(camVid, 0, 0, rawW, rawH);
+        let finalCanvas = tmp;
+        if (needRotateForDevice(rawW, rawH)) finalCanvas = rotateCanvas90(tmp, true);
+        blob = await new Promise(res => finalCanvas.toBlob(res, 'image/jpeg', 0.98));
+      }
+      if (!blob) {
+        setErr('Nie udało się przygotować zdjęcia');
+        uploading = false;
+        captureBtn.disabled = false;
+        return;
+      }
+
+      // flash & sound AFTER photo is captured to avoid motion blur
+      doFlash();
+      playShutter();
+
+      const url = URL.createObjectURL(blob);
+      previewImg.src = url;
+      previewImg.style.display = 'block';
+      camVid.style.display = 'none';
+      progressOverlay.classList.add('visible');
+
+      try {
+        await uploadFileWithProgress(new File([blob], 'photo.jpg', { type: blob.type }));
+        setOk('Wysłano ✅');
+        progressMessage.textContent = 'Wysłano';
+        showToast('Wysłano');
+        animateTo100();
+        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1100);
+        setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 900);
+      } catch (e) {
+        progressMessage.textContent = 'Błąd wysyłania';
+        setErr('Błąd wysyłania');
+        setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 2000);
+        setTimeout(()=>{ if (previewImg.src) URL.revokeObjectURL(previewImg.src); previewImg.style.display = 'none'; camVid.style.display = 'block'; }, 900);
+      }
+    } finally {
+      uploading = false;
+      captureBtn.disabled = false;
+      progressBar.style.width = '0%';
+      progressText.textContent = '…';
+      stopIndeterminateProgress();
+    }
+  }
+
+  function uploadFileWithProgress(file){
+    progressMessage.textContent = '';
+    startIndeterminateProgress();
+    return new Promise((res, rej) => {
+      const fd = new FormData();
+      fd.append('file', file, file.name || 'photo.jpg');
+      fd.append('event', eventToken);
+      fd.append('uuid', uuid);
+      fd.append('t', t);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', WORKER_URL, true);
+      xhr.timeout = 60000;
+      let seenReal = false;
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          if (!seenReal) { seenReal = true; stopIndeterminateProgress(); }
+          const pct = Math.round((e.loaded / e.total) * 100);
+          setProgress(pct);
+        } else {
+          if (!indeterminateTimer) startIndeterminateProgress();
+        }
+      };
+
+      xhr.onload = () => {
+        stopIndeterminateProgress();
+        let json = {};
+        try { json = JSON.parse(xhr.responseText || '{}'); } catch (err) { json = {}; }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          animateTo100();
+          progressMessage.textContent = 'Sukces';
+          setTimeout(()=>{ progressMessage.textContent = 'Wysłano'; }, 300);
+          setTimeout(()=>{ res(json); }, 650);
+        } else {
+          progressMessage.textContent = 'Błąd';
+          rej(json);
+        }
+      };
+
+      xhr.onerror = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Błąd sieci'; rej(new Error('network')); };
+      xhr.ontimeout = () => { stopIndeterminateProgress(); progressMessage.textContent = 'Timeout'; rej(new Error('timeout')); };
+
+      try {
+        xhr.send(fd);
+      } catch (e) {
+        stopIndeterminateProgress();
+        progressMessage.textContent = 'Błąd wysyłania';
+        rej(e);
+      }
+    });
+  }
+
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) { setErr('Brak pliku'); return; }
+    setOk('Wybrano plik — wysyłam...');
+    try {
+      await uploadFileWithProgress(f);
+      setOk('Wysłano ✅');
+      showToast('Wysłano');
+      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1200);
+    } catch (e) {
+      setErr('Błąd uploadu');
+      setTimeout(()=>{ progressOverlay.classList.remove('visible'); progressMessage.textContent = ''; }, 1600);
+    } finally {
+      progressBar.style.width = '0%';
+      progressText.textContent = '…';
+      stopIndeterminateProgress();
+    }
+  });
+
+  openBtn.addEventListener('click', async () => { await startCamera(); });
   captureBtn.addEventListener('click', captureAndUpload);
-  stopBtn.addEventListener('click', ()=>{ stopCamera(); });
-  switchBtn.addEventListener('click', async ()=>{ if(switching) return; switching = true; try{ currentFacing = currentFacing === 'environment' ? 'user' : 'environment'; await startCamera(); }finally{ switching = false; } });
-  retryPermBtn.addEventListener('click', async ()=>{ setOk('Sprawdzam stan uprawnień...'); const state = await checkPermissionState(); if(state === 'granted'){ setOk('Uprawnienia przyznane — uruchamiam aparat...'); await startCamera(); return; } if(state === 'prompt' || state === null){ setOk('Spróbuję ponownie poprosić o dostęp...'); await startCamera(); return; } if(state === 'denied'){ setErr('Uprawnienie zablokowane. Zobacz instrukcje w polu poniżej.'); showPermissionInstructions(); return; } setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub otwórz w innej przeglądarce.'); });
-  function providePermissionHelp(err){ const msg = err && err.name ? err.name : String(err); setErr('Dostęp do aparatu odrzucony lub zablokowany: ' + msg + '\nZobacz instrukcje poniżej.'); showPermissionInstructions(); }
-  function showPermissionInstructions(){ inAppBox.style.display='block'; inAppBox.innerHTML = `<strong>Jak odblokować aparat?</strong>
+  stopBtn.addEventListener('click', () => { stopCamera(); });
+
+  switchBtn.addEventListener('click', async () => {
+    if (switching) return;
+    switching = true;
+    try {
+      currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
+      await startCamera();
+    } finally {
+      switching = false;
+    }
+  });
+
+  retryPermBtn.addEventListener('click', async () => {
+    setOk('Sprawdzam stan uprawnień...');
+    const state = await checkPermissionState();
+    if (state === 'granted') { setOk('Uprawnienia przyznane — uruchamiam aparat...'); await startCamera(); return; }
+    if (state === 'prompt' || state === null) { setOk('Spróbuję ponownie poprosić o dostęp...'); await startCamera(); return; }
+    if (state === 'denied') { setErr('Uprawnienie zablokowane. Zobacz instrukcje w polu poniżej.'); showPermissionInstructions(); return; }
+    setErr('Nie można sprawdzić uprawnień — spróbuj ręcznie w ustawieniach lub otwórz w innej przeglądarce.');
+  });
+
+  function providePermissionHelp(err){
+    const msg = err && err.name ? err.name : String(err);
+    setErr('Dostęp do aparatu odrzucony lub zablokowany: ' + msg + '\nZobacz instrukcje poniżej.');
+    showPermissionInstructions();
+  }
+
+  function showPermissionInstructions(){
+    inAppBox.style.display = 'block';
+    inAppBox.innerHTML = `<strong>Jak odblokować aparat?</strong>
       <ol>
         <li>Jeśli jesteś w aplikacji (Facebook/Instagram) — wybierz "Otwórz w przeglądarce" i spróbuj ponownie.</li>
         <li>iOS: Ustawienia → Safari (lub inna przeglądarka) → Aparat → Zezwól.</li>
         <li>Android: Ustawienia → Aplikacje → Chrome (lub inna) → Uprawnienia → Aparat → Zezwól.</li>
         <li>Możesz też usunąć blokadę dla tej strony w ustawieniach witryny (Site settings → Camera / Aparat).</li>
       </ol>
-      Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`; }
+      Po zmianie ustawień wróć tutaj i naciśnij "Sprawdź uprawnienia".`;
+  }
+
   openInBrowserBtn.addEventListener('click', ()=>{ window.open(location.href, '_blank', 'noopener'); });
-  window.addEventListener('pagehide', ()=>{ if(activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
-  fsBtn.addEventListener('click', async ()=>{ try{ if(!document.fullscreenElement) await videoWrap.requestFullscreen(); else await document.exitFullscreen(); }catch(e){} });
-  document.addEventListener('fullscreenchange', ()=>{ try{ if(document.fullscreenElement){ if(flashEl.parentElement !== document.fullscreenElement) document.fullscreenElement.appendChild(flashEl); } else { if(flashEl.parentElement !== document.body) document.body.appendChild(flashEl); } }catch(e){} });
-  function getOrientationAngle(){ try{ if(screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle; if(typeof window.orientation === 'number') return (window.orientation + 360) % 360; }catch(e){} return 0; }
-  function updateCapturePosition(){ const angle = getOrientationAngle(); captureBtn.classList.remove('bottomCenter','topCenter','leftCenter','rightCenter'); if(angle === 0) captureBtn.classList.add('bottomCenter'); else if(angle === 180) captureBtn.classList.add('topCenter'); else if(angle === 90) captureBtn.classList.add('rightCenter'); else if(angle === 270) captureBtn.classList.add('leftCenter'); else captureBtn.classList.add(window.innerWidth > window.innerHeight ? 'rightCenter' : 'bottomCenter'); }
-  try{ screen.orientation && screen.orientation.addEventListener && screen.orientation.addEventListener('change', ()=>{ updateCapturePosition(); }); }catch(e){} window.addEventListener('orientationchange', ()=>{ setTimeout(()=> updateCapturePosition(), 120); });
+
+  window.addEventListener('pagehide', ()=>{ if (activeStream) activeStream.getTracks().forEach(t=>t.stop()); });
+
+  fsBtn.addEventListener('click', async ()=>{
+    try {
+      if (!document.fullscreenElement) await videoWrap.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch (e) {}
+  });
+
+  document.addEventListener('fullscreenchange', ()=> {
+    try {
+      if (document.fullscreenElement) {
+        if (flashEl.parentElement !== document.fullscreenElement) document.fullscreenElement.appendChild(flashEl);
+      } else {
+        if (flashEl.parentElement !== document.body) document.body.appendChild(flashEl);
+      }
+    } catch (e) {}
+  });
+
+  function getOrientationAngle(){
+    try {
+      if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+      if (typeof window.orientation === 'number') return (window.orientation + 360) % 360;
+    } catch (e) {}
+    return 0;
+  }
+
+  function updateCapturePosition(){
+    const angle = getOrientationAngle();
+    captureBtn.classList.remove('bottomCenter','topCenter','leftCenter','rightCenter');
+    if (angle === 0) captureBtn.classList.add('bottomCenter');
+    else if (angle === 180) captureBtn.classList.add('topCenter');
+    else if (angle === 90) captureBtn.classList.add('rightCenter');
+    else if (angle === 270) captureBtn.classList.add('leftCenter');
+    else captureBtn.classList.add(window.innerWidth > window.innerHeight ? 'rightCenter' : 'bottomCenter');
+  }
+
+  try {
+    if (screen.orientation && screen.orientation.addEventListener) {
+      screen.orientation.addEventListener('change', ()=>{ updateCapturePosition(); });
+    }
+  } catch (e) {}
+
+  window.addEventListener('orientationchange', ()=>{ setTimeout(()=> updateCapturePosition(), 120); });
+
   updateControlsVisibility();
   updateCapturePosition();
+
 })();
 </script>
 </body>
