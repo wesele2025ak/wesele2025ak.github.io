@@ -52,6 +52,12 @@
   .progressMessage{font-size:1.05rem;color:#bff7c6;text-align:center;font-weight:700}
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .hidden{display:none !important}
+  #captureBtn svg {
+    width: 40px;
+    height: 40px;
+    display: block;
+    margin: 0;
+  }
 </style>
 </head>
 <body>
@@ -86,7 +92,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2" ry="2"/><path d="M9 7l1.5-2h3L15 7"/><circle cx="12" cy="13" r="3"/><path d="M4 4L20 20"/></svg>
         </button>
         <button class="control bottomCenter big" id="captureBtn" aria-label="Zrób zdjęcie" title="Zrób zdjęcie">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="36" height="24" rx="2" ry="2"/><path d="M9 7l1.5-2h3L15 7"/><circle cx="12" cy="13" r="3"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2" ry="2"/><path d="M9 7l1.5-2h3L15 7"/><circle cx="12" cy="13" r="3"/></svg>
         </button>
         <button class="control bottomLeft small hidden" id="torchBtn" aria-label="Włącz lampę" title="Włącz lampę">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8a4 4 0 0 0 0 8" fill="currentColor"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="12" y1="20" x2="12" y2="22"/> </svg>
@@ -764,6 +770,7 @@
 </script>
 </body>
 </html>
+
 
 
 
