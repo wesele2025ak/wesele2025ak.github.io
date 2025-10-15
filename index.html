@@ -28,11 +28,12 @@
   .control.topLeft{top:12px;left:12px}
   .control.topLeft.offset{left:64px}
   .control.bottomCenter{left:50%;transform:translateX(-50%);bottom:18px}
+  .control.bottomLeft{left:16px;bottom:16px;top:auto;right:auto;transform:none;z-index:8}
+  .control.bottomRight { right: 16px; bottom: 16px; top: auto; left: auto; transform: none; z-index: 8; }
   .control.topCenter{left:50%;transform:translateX(-50%);top:18px}
   .control.leftCenter{top:50%;left:18px;transform:translateY(-50%)}
   .control.rightCenter{top:50%;right:18px;transform:translateY(-50%)}
   .control.hidden{display:none}
-  #switchBtn{right:16px;bottom:16px;top:auto;left:auto;transform:none;z-index:8}
   .control.active{background:linear-gradient(180deg,#ffd166,#ffb347);color:#111;border-color:rgba(255,255,255,0.08)}
   .hint{margin-top:8px;font-size:.9rem;color:#cfcfcf}
   .inApp{margin-top:8px;padding:8px;background:#16181b;border:1px solid #2a2d33;border-radius:8px}
@@ -89,6 +90,9 @@
         </button>
         <button class="control bottomCenter big" id="captureBtn" aria-label="Zrób zdjęcie" title="Zrób zdjęcie">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4.2" y="5.2" width="15.6" height="13.6" rx="2"/><circle cx="12" cy="12" r="3.6" fill="rgba(255,255,255,0.08)"/></svg>
+        </button>
+        <button class="control bottomLeft small hidden" id="torchBtn" aria-label="Włącz lampę" title="Włącz lampę">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v6"/><path d="M17 2v6"/><path d="M12 19v3"/><path d="M10 8h4l1 8H9z"/></svg>
         </button>
         <button class="control bottomRight small" id="switchBtn" aria-label="Przełącz aparat" title="Przełącz aparat">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7v3a1 1 0 0 0 1 1h5" /><path d="M20 17v-3a1 1 0 0 0-1-1h-5" /><path d="M7 9l-3-3 3-3" /><path d="M17 15l3 3-3 3" /></svg>
@@ -763,3 +767,4 @@
 </script>
 </body>
 </html>
+
